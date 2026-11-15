@@ -25,14 +25,14 @@ const UI_LANG_NAMES = {
 
 const BADINI_STYLE_RULES = `
 CRITICAL BADINI KURDISH (BEHDINI) RULES:
-1. You MUST write in pure, natural Badini Kurdish (Duhok/Zakho/Amedi/Akre dialect), NEVER Sorani.
-2. Vocabulary:
-   - Use: گەلەک (NOT زۆر), چاوا (NOT چۆن), ئەڤە/ئەڤ (NOT ئەمە), دگەل (NOT لەگەڵ), نینە (NOT نییە), بەلێ (NOT بەڵام/بەڵێ), هەروەسا (NOT هەروەها), ب تنێ (NOT تەنیا/تەنها), ڤێرێ (NOT ئێرە), وێرێ (NOT ئەوێ), ژ بەر کو (NOT چونکە/لەبەرئەوەی), پێدڤی (NOT پێویست/پێتڤی), سەقا (NOT کەشوهەوا/هوا), زوی (NOT زوو), دشێم (NOT دەتوانم), دزانم (NOT دەزانم), دکەم (NOT دەکەم), بێ زەحمەت / هیڤی یە (NOT تکایە), ئەلمانی (NOT ئەڵمانی), لێ (NOT بەڵێ in wrong places).
+1. Write ONLY in pure, natural Badini Kurdish (Duhok/Zakho/Amedi/Akre dialect). NEVER mix in Sorani words or Sorani grammar.
+2. Vocabulary (Badini vs Sorani):
+   - گەلەک (NOT زۆر), چاوا (NOT چۆن), ئەڤە / ئەڤ (NOT ئەمە), دگەل (NOT لەگەڵ), نینە (NOT نییە), بەلێ (NOT بەڵێ/بەڵام), لێ / بەلێ (for "but"), هەروەسا (NOT هەروەها), ب تنێ (NOT تەنیا/تەنها), ڤێرێ (NOT ئێرە), وێرێ (NOT ئەوێ), ژ بەر کو (NOT چونکە/لەبەرئەوەی), پێدڤی (NOT پێویست/پێتڤی), سەقا (NOT کەشوهەوا/هوا), زوی (NOT زوو), دشێم (NOT دەتوانم), دزانم (NOT دەزانم), دکەم (NOT دەکەم), بێ زەحمەت / هیڤی یە (NOT تکایە), ئەلمانی (NOT ئەڵمانی), بێهنەکێ ڤەدەم (NOT پشوو/بێهۆنەکێ).
 3. Grammar:
    - Future tense uses "دێ": ئەز دێ چم (I will go), ئەو دێ هێت (he/she will come).
    - Present continuous uses "یێ / یا / یێن" + "دـ": ئەز یێ دچم (I am going), ئەو یا دخوینیت (she is reading).
    - Past transitive verbs are ERGATIVE: من گۆت (I said), من کر (I did), تە دیت (you saw), وی نڤیسی (he wrote) — NEVER Sorani "وتم/کردم".
-   - Script (Arabic): Use Kurdish ک (not ك), ی (not ي), ە (not ه at word ends), and NEVER write "ەا" together (write نموونەیا, NOT نموونەا).
+   - Arabic script spelling: Use Kurdish ک (not ك), ی (not ي), ە (not ه at word ends), and NEVER write "ەا" together (write نموونەیا, NOT نموونەا).
 4. Examples of natural Badini:
    - "I am going to the market." -> "ئەز یێ دچمە بازاری."
    - "I bought bread this morning and came home." -> "من ئەڤ سپێدێ نان کڕی و هاتمە مال."
@@ -54,7 +54,7 @@ function json(statusCode, body) {
   };
 }
 
-function buildPrompt({ mode, text, translation, from, to, style, ui, hasImage }) {
+function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }) {
   const fromName = LANG_NAMES[from] || from;
   const toName = LANG_NAMES[to] || to;
   const isBadiniTarget = to === "ku-Ar" || to === "ku-Latn";
@@ -66,35 +66,41 @@ function buildPrompt({ mode, text, translation, from, to, style, ui, hasImage })
         : from === "ku-Ar"
         ? "Write in Kurdish Arabic script (پ، چ، ژ، ڤ، گ، ێ، ۆ، ک، ی، ە)."
         : "Keep the exact same script (Arabic script or Hawar Latin) that the user wrote in.";
-    return [
-      `You are an expert editor of Badini Kurdish (Behdini dialect).`,
-      `Fix spelling, grammar, ergativity, word spacing, and punctuation mistakes in the text below.`,
-      BADINI_STYLE_RULES,
-      `- ${scriptHint}`,
-      `- Output ONLY the corrected text without explanations, quotes, or markdown.`,
-      `\nText:\n${text}`,
-    ].join("\n");
+    return {
+      systemPrompt: [
+        `You are a native Badini Kurdish (Behdini) language editor.`,
+        `Fix spelling, grammar, ergativity, word spacing, and punctuation mistakes in the user's text.`,
+        BADINI_STYLE_RULES,
+        `- ${scriptHint}`,
+        `- Output ONLY the corrected text with NO explanations, NO quotes, and NO markdown.`,
+      ].join("\n"),
+      userPrompt: text,
+    };
   }
 
   if (mode === "explain") {
     const explainLang = UI_LANG_NAMES[ui] || UI_LANG_NAMES.ku;
-    return [
-      `You are a clear, accurate language teacher specializing in Badini Kurdish (Behdini) and world languages.`,
-      `Write your explanation in ${explainLang}.`,
-      ui === "ku" ? BADINI_STYLE_RULES : "",
-      `Source language: ${fromName}. Target language: ${toName}.`,
-      text ? `Original text: ${text}` : "",
-      translation ? `Translated text: ${translation}` : "",
-      `Provide:`,
-      `1) A brief, simple explanation of the meaning and grammar (2 short lines, using simple grammar terms without weird invented words).`,
-      `2) 2 natural practical example sentences with translations.`,
-      `Strict formatting rules:`,
-      `- Do NOT write any greeting (like "سلاڤ").`,
-      `- Do NOT use markdown symbols like **, *, or #.`,
-      `- Double-check every Badini word spelling carefully.`,
-    ]
-      .filter(Boolean)
-      .join("\n");
+    return {
+      systemPrompt: [
+        `You are a native, clear language teacher specializing in Badini Kurdish (Behdini) and world languages.`,
+        `Write your entire response in ${explainLang}.`,
+        ui === "ku" ? BADINI_STYLE_RULES : "",
+        `Provide:`,
+        `1) A brief, natural explanation of the meaning and grammar (2 short lines, simple grammar terms, NO invented words).`,
+        `2) 2 practical example sentences with translations.`,
+        `Strict rules: Do NOT write any greeting (like "سلاڤ"), do NOT use markdown symbols (**, *, #), and double-check every Badini word.`,
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      userPrompt: [
+        `Source language: ${fromName}`,
+        `Target language: ${toName}`,
+        text ? `Original: ${text}` : "",
+        translation ? `Translation: ${translation}` : "",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+    };
   }
 
   const styleDesc =
@@ -104,21 +110,23 @@ function buildPrompt({ mode, text, translation, from, to, style, ui, hasImage })
       ? "Use natural everyday spoken language."
       : "Use clear, accurate, and natural language.";
 
-  return [
-    `You are an expert professional translator specializing in Badini Kurdish (Behdini) and world languages.`,
-    `Source language: ${fromName}.`,
-    `Target language: ${toName}.`,
-    `Style: ${styleDesc}`,
-    isBadiniTarget ? BADINI_STYLE_RULES : "",
-    `Output rules:`,
-    `- Output ONLY the final translation without explanations, quotes, greetings, or markdown.`,
-    hasImage
-      ? `- Read all visible text in the image and translate it accurately. If there is no readable text in the image and no user text was provided, reply with exactly: __NO_TEXT__`
-      : "",
-    text ? `\nText to translate:\n${text}` : "",
-  ]
-    .filter(Boolean)
-    .join("\n");
+  return {
+    systemPrompt: [
+      `You are an elite native translator specializing in Badini Kurdish (Behdini) and world languages.`,
+      `Source language: ${fromName}.`,
+      `Target language: ${toName}.`,
+      `Style: ${styleDesc}`,
+      isBadiniTarget ? BADINI_STYLE_RULES : "",
+      `Output rules:`,
+      `- Output ONLY the final translation without explanations, quotes, greetings, or markdown.`,
+      hasImage
+        ? `- Read all visible text in the image and translate it accurately. If there is no readable text in the image and no user text was provided, reply with exactly: __NO_TEXT__`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n"),
+    userPrompt: text || "Read the visible text in the image and translate it.",
+  };
 }
 
 const BADINI_SUBSTRING_FIXES = {
@@ -177,7 +185,7 @@ function cleanOutput(raw, polishBadini) {
   return out;
 }
 
-async function fetchWithTimeout(url, options, ms = 4200) {
+async function fetchWithTimeout(url, options, ms = 3800) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), ms);
   try {
@@ -187,13 +195,12 @@ async function fetchWithTimeout(url, options, ms = 4200) {
   }
 }
 
-// 1) Google Gemini (Smart 3.8-flash first, then 3.5-flash-lite)
-async function callGemini(prompt, image, polishBadini) {
+async function callGemini(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
 
   const models = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
-  const parts = [{ text: prompt }];
+  const parts = [{ text: userPrompt }];
   if (image?.data && image?.mimeType) {
     parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
   }
@@ -205,7 +212,11 @@ async function callGemini(prompt, image, polishBadini) {
       const res = await fetchWithTimeout(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ contents: [{ parts }], generationConfig: { temperature: 0.2 } }),
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts }],
+          generationConfig: { temperature: 0.15 },
+        }),
       });
 
       if (res.status === 401 || res.status === 403) { lastErr = "api_key"; continue; }
@@ -222,23 +233,29 @@ async function callGemini(prompt, image, polishBadini) {
   throw new Error(lastErr);
 }
 
-// 2) Groq
-async function callGroq(prompt, image, polishBadini) {
+async function callGroq(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
 
   const model = image ? "qwen/qwen3.8-27b" : "openai/gpt-oss-120b";
   const content = image?.data
     ? [
-        { type: "text", text: prompt },
+        { type: "text", text: userPrompt },
         { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } },
       ]
-    : prompt;
+    : userPrompt;
 
   const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages: [{ role: "user", content }], temperature: 0.2 }),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+    }),
   });
 
   if (res.status === 401 || res.status === 403) throw new Error("api_key");
@@ -251,23 +268,30 @@ async function callGroq(prompt, image, polishBadini) {
   return cleanOutput(out, polishBadini);
 }
 
-// 3) NVIDIA NIM
-async function callNvidia(prompt, image, polishBadini) {
+async function callNvidia(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
 
   const model = "nvidia/nemotron-3.5-super-vl-120b-a12b";
   const content = image?.data
     ? [
-        { type: "text", text: prompt },
+        { type: "text", text: userPrompt },
         { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } },
       ]
-    : prompt;
+    : userPrompt;
 
   const res = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
-    body: JSON.stringify({ model, messages: [{ role: "user", content }], temperature: 0.2, max_tokens: 1024 }),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+      max_tokens: 1024,
+    }),
   });
 
   if (res.status === 401 || res.status === 403) throw new Error("api_key");
@@ -280,18 +304,17 @@ async function callNvidia(prompt, image, polishBadini) {
   return cleanOutput(out, polishBadini);
 }
 
-// 4) OpenRouter
-async function callOpenRouter(prompt, image, polishBadini) {
+async function callOpenRouter(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
 
   const model = image ? "nvidia/nemotron-3.5-super-vl:free" : "openrouter/free";
   const content = image?.data
     ? [
-        { type: "text", text: prompt },
+        { type: "text", text: userPrompt },
         { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } },
       ]
-    : prompt;
+    : userPrompt;
 
   const res = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -301,7 +324,14 @@ async function callOpenRouter(prompt, image, polishBadini) {
       "HTTP-Referer": "https://badini-translate.netlify.app",
       "X-Title": "Badini Translate",
     },
-    body: JSON.stringify({ model, messages: [{ role: "user", content }], temperature: 0.2 }),
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+    }),
   });
 
   if (res.status === 401 || res.status === 403) throw new Error("api_key");
@@ -314,8 +344,7 @@ async function callOpenRouter(prompt, image, polishBadini) {
   return cleanOutput(out, polishBadini);
 }
 
-// 5) Cloudflare Workers AI (Text)
-async function callCloudflare(prompt, image, polishBadini) {
+async function callCloudflare(systemPrompt, userPrompt, image, polishBadini) {
   if (image?.data) throw new Error("skip_image");
   const token = process.env.CLOUDFLARE_API_TOKEN;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
@@ -325,7 +354,12 @@ async function callCloudflare(prompt, image, polishBadini) {
   const res = await fetchWithTimeout(url, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ messages: [{ role: "user", content: prompt }] }),
+    body: JSON.stringify({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
   });
 
   if (res.status === 401 || res.status === 403) throw new Error("api_key");
@@ -336,6 +370,31 @@ async function callCloudflare(prompt, image, polishBadini) {
   const out = data?.result?.response || data?.result?.choices?.[0]?.message?.content;
   if (!out) throw new Error("server");
   return cleanOutput(out, polishBadini);
+}
+
+// پێداچوونا دووێ ب AI یەکێ دی دا خەلەتیێن بادینی نەمینن
+async function secondPassProofread(draft, mainProvider) {
+  const proofSystem = [
+    `You are a strict Badini Kurdish (Behdini) proofreader.`,
+    `Fix ONLY spelling typos (like نموونەا -> نموونەیا, پێتڤی -> پێدڤی), Sorani words (زۆر -> گەلەک, چۆن -> چاوا, نییە -> نینە, لەگەڵ -> دگەل, هوا -> سەقا), or ergative grammar errors (کردم -> من کر).`,
+    `Keep the exact same meaning, language, and format. If it is already good Badini, output it unchanged.`,
+    `Output ONLY the final text with NO comments, NO greetings, and NO markdown.`,
+  ].join("\n");
+
+  try {
+    let edited = "";
+    if (mainProvider !== "Groq" && process.env.GROQ_API_KEY) {
+      edited = await callGroq(proofSystem, draft, null, true);
+    } else if (mainProvider !== "Gemini" && process.env.GEMINI_API_KEY) {
+      edited = await callGemini(proofSystem, draft, null, true);
+    }
+    if (edited && edited.length >= draft.length * 0.45 && edited.length <= draft.length * 1.55) {
+      return edited;
+    }
+  } catch {
+    // ئەگەر پێداچوون خاڤ بوو، بەرسڤا ئێکێ بهێلە
+  }
+  return draft;
 }
 
 exports.handler = async (event) => {
@@ -370,7 +429,17 @@ exports.handler = async (event) => {
     (mode === "explain" && ui === "ku") ||
     (mode === "translate" && to === "ku-Ar");
 
-  const prompt = buildPrompt({ mode, text, translation, from, to, style, ui, hasImage: !!image?.data });
+  const { systemPrompt, userPrompt } = buildPrompts({
+    mode,
+    text,
+    translation,
+    from,
+    to,
+    style,
+    ui,
+    hasImage: !!image?.data,
+  });
+
   const providers = [
     ["Gemini", callGemini],
     ["Groq", callGroq],
@@ -384,11 +453,14 @@ exports.handler = async (event) => {
   let hasAnyKey = false;
 
   for (const [name, run] of providers) {
-    if (Date.now() - startedAt > 8200) break;
+    if (Date.now() - startedAt > 7800) break;
     try {
-      const result = await run(prompt, image, polishBadini);
+      let result = await run(systemPrompt, userPrompt, image, polishBadini);
       if (result.includes("__NO_TEXT__")) {
         return json(200, { translation: "", noText: true, provider: name });
+      }
+      if (polishBadini && Date.now() - startedAt < 4500) {
+        result = await secondPassProofread(result, name);
       }
       return json(200, { translation: result, noText: false, provider: name });
     } catch (err) {
