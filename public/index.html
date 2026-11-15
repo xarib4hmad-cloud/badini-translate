@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="theme-color" content="#f5f7fb">
-<meta name="description" content="وەرگێڕانا دەق و وێنە ب کوردیا بادینی و زمانێن جیهانی">
+<meta name="description" content="وەرگێڕانا دەق و وێنەیان ب کوردیا بادینی و زمانێن جیهانی">
 <title>وەرگێڕان | بادینی و زمانێن جیهانی</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -35,6 +35,7 @@ header{display:flex;align-items:center;justify-content:space-between;gap:18px;ma
 .editor{border:1px solid var(--line);border-radius:19px;background:var(--panel2);overflow:hidden;min-width:0}
 .editor-head{display:flex;align-items:center;justify-content:space-between;padding:12px 14px 0;color:var(--muted);font-size:11px}
 .editor-head strong{color:var(--text);font-size:12px;font-weight:700}
+#counter.over{color:var(--danger);font-weight:700}
 textarea{display:block;width:100%;height:205px;resize:vertical;border:0;outline:0;background:transparent;color:var(--text);padding:14px 15px;font-size:15px;line-height:1.9}
 textarea::placeholder{color:var(--muted);opacity:.8}
 .editor-foot{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:8px 12px 12px;color:var(--muted);font-size:10px;flex-wrap:wrap}
@@ -57,13 +58,13 @@ footer{text-align:center;color:var(--muted);font-size:10px;margin-top:24px}
 <header>
   <div class="brand"><div class="logo">文</div><div><h1 data-i18n="brand">وەرگێڕان</h1><small data-i18n="tagline">بادینی و زمانێن جیهانی</small></div></div>
   <div class="header-actions">
-    <select id="uiLang" class="ui-select" aria-label="زمانێ رووکارێ"><option value="ku">بادینی</option><option value="ar">العربية</option><option value="en">English</option></select>
-    <button id="themeBtn" class="icon-btn" aria-label="گوهۆڕینا دۆخێ">🌙</button>
+    <select id="uiLang" class="ui-select" aria-label="زمانێ ڕووکاری"><option value="ku">بادینی</option><option value="ar">العربية</option><option value="en">English</option></select>
+    <button id="themeBtn" class="icon-btn" aria-label="گوهۆڕینا دۆخی">🌙</button>
     <a href="#about" class="icon-btn" style="display:grid;place-items:center;text-decoration:none" aria-label="دەربارە">ⓘ</a>
   </div>
 </header>
 
-<section class="hero"><h2 data-i18n="heroTitle">پەیڤان ب ئاسانی وەربگێڕە</h2><p data-i18n="heroSub">ژ کوردیا بادینی بۆ زمانێن جیهانی و پێچەوانە.</p></section>
+<section class="hero"><h2 data-i18n="heroTitle">پەیڤان ب ئاسانی وەربگێڕە</h2><p data-i18n="heroSub">ژ کوردیا بادینی بۆ زمانێن جیهانی و بەروڤاژی.</p></section>
 
 <main class="translator">
   <div class="language-row">
@@ -79,13 +80,13 @@ footer{text-align:center;color:var(--muted);font-size:10px;margin-top:24px}
 
   <div class="editors">
     <section class="editor">
-      <div class="editor-head"><strong data-i18n="inputTitle">دەقێ تە</strong><span id="counter">0 / 3000</span></div>
-      <textarea id="sourceText" maxlength="3000" placeholder="دەقێ خۆ ل ڤێرێ بنڤیسە..." data-placeholder="inputPlaceholder" dir="auto"></textarea>
+      <div class="editor-head"><strong data-i18n="inputTitle">دەقێ تە</strong><span id="counter">0 / 100 پەیڤ</span></div>
+      <textarea id="sourceText" maxlength="2500" placeholder="دەقێ خۆ ل ڤێرێ بنڤیسە..." data-placeholder="inputPlaceholder" dir="auto"></textarea>
       <div class="image-preview" id="imagePreview"><img id="previewImg" alt="پێشبینینا وێنەی"><span id="imageName"></span><button id="removeImage" class="remove-image" aria-label="لابرن">✕</button></div>
       <div class="editor-foot"><div class="tools">
-        <button id="clearBtn" class="tool-btn" data-i18n="clear">پاککرن</button>
+        <button id="clearBtn" class="tool-btn" data-i18n="clear">پاقژکرن</button>
         <button id="fixBtn" class="tool-btn ai-tool" data-i18n="fixBadini">✍️ راستڤەکرنا بادینی</button>
-      </div><span data-i18n="maxChars">زێدەترین 3000 پیت</span></div>
+      </div><span data-i18n="maxWords">هەری زێدە 100 پەیڤ</span></div>
     </section>
     <section class="editor">
       <div class="editor-head"><strong data-i18n="outputTitle">وەرگێڕان</strong><span id="outputLangLabel">بادینی</span></div>
@@ -116,16 +117,16 @@ footer{text-align:center;color:var(--muted);font-size:10px;margin-top:24px}
 </main>
 
 <section class="section" id="historySection">
-  <div class="section-title"><h3 data-i18n="history">وەرگێڕانێن دوماهیێ</h3><button id="clearHistory" class="text-link" data-i18n="clearHistory">ژێبرنا هەمی</button></div>
+  <div class="section-title"><h3 data-i18n="history">وەرگێڕانێن دووماهیێ</h3><button id="clearHistory" class="text-link" data-i18n="clearHistory">ژێبرنا هەمیان</button></div>
   <div id="historyList" class="history-list"></div>
 </section>
 
 <section class="about" id="about">
   <h3 data-i18n="aboutTitle">دەربارەی سایتی</h3>
-  <p data-i18n="aboutOwner"><strong>ئەڤ سایتە هاتییە دروستکرن ژ لایێ غریب احمد ڤە.</strong></p>
-  <p data-i18n="aboutText">ئەم سایتە ب مەبەستا پشتەڤانیکرنا زمانێ کوردیا بادینی و ئاسانکرنا وەرگێڕانێ د ناڤبەرا بادینی و زمانێن جیهانی دا، ب شێوەیەکێ بلەز و ئاسان، هاتییە دروستکرن.</p>
+  <p><strong data-i18n="aboutOwner">ئەڤ سایتە هاتییە دروستکرن ژ لایێ غریب احمد ڤە.</strong></p>
+  <p data-i18n="aboutText">ئەڤ سایتە ب مەبەستا پشتەڤانیکرنا زمانێ کوردیا بادینی و ئاسانکرنا وەرگێڕانێ د ناڤبەرا بادینی و زمانێن جیهانی دا، ب شێوەیەکێ بلەز و ئاسان، هاتییە دروستکرن.</p>
 </section>
-<footer data-i18n="footer">دەق و وێنە تەنێ پشتی داخوازییا وەرگێڕانێ بۆ ژیرێن دەستکرد (Gemini, Groq, NVIDIA, Mistral, Cloudflare, OpenRouter) دهێنە فرێکرن.</footer>
+<footer data-i18n="footer">دەق و وێنە ب تنێ پشتی داخوازییا وەرگێڕانێ بۆ ژیرێن دەستکرد (Gemini, Groq, NVIDIA, Cloudflare, OpenRouter) دهێنە ڤرێکرن.</footer>
 </div>
 
 <script>
@@ -137,13 +138,13 @@ const languages = [
  ["ku-Latn","کوردیا بادینی (لاتینی)","Badini Kurdish (Latin)","الكردية البادينية (لاتيني)","ku-Latn"],
  ["ar","عەرەبی","Arabic","العربية","ar"],
  ["en","ئینگلیزی","English","الإنجليزية","en"],
- ["de","ئەڵمانی","German","الألمانية","de"],
+ ["de","ئەلمانی","German","الألمانية","de"],
  ["tr","تورکی","Turkish","التركية","tr"],
  ["fr","فەرەنسی","French","الفرنسية","fr"],
  ["fa","فارسی","Persian","الفارسية","fa"],
  ["es","ئیسپانی","Spanish","الإسبانية","es"],
  ["it","ئیتالی","Italian","الإيطالية","it"],
- ["nl","هۆڵەندی","Dutch","الهولندية","nl"],
+ ["nl","هۆلەندی","Dutch","الهولندية","nl"],
  ["sv","سویدی","Swedish","السويدية","sv"],
  ["ru","ڕووسی","Russian","الروسية","ru"],
  ["zh","چینی","Chinese","الصينية","zh"],
@@ -151,22 +152,24 @@ const languages = [
 ];
 const dict = {
  ku:{
- brand:"وەرگێڕان",tagline:"بادینی و زمانێن جیهانی",heroTitle:"پەیڤان ب ئاسانی وەربگێڕە",heroSub:"ژ کوردیا بادینی بۆ زمانێن جیهانی و پێچەوانە.",
- from:"ژ زمانێ",to:"بۆ زمانێ",style:"شێواز:",normal:"ئاسایی",formal:"فەرمی",everyday:"ڕۆژانە",inputTitle:"دەقێ تە",outputTitle:"وەرگێڕان",inputPlaceholder:"دەقێ خۆ ل ڤێرێ بنڤیسە...",outputPlaceholder:"وەرگێڕان ل ڤێرێ دیار دبیت...",clear:"پاککرن",fixBadini:"✍️ راستڤەکرنا بادینی",fixing:"ڕێنڤیسا بادینی دهێتە راستڤەکرن...",fixed:"ڕێنڤیس ب AI هاتە راستڤەکرن ✓",maxChars:"زێدەترین 3000 پیت",copy:"📋 کۆپی",copied:"هاتە کۆپیکرن ✓",speak:"🔊 بخوینە",explainBtn:"💡 شیکارکرن و نموونە",explaining:"AI یێ شیکارکرن و نموونەیان ئامادە دکەت...",explainTitle:"💡 شیکارکرن و نموونە ب AI",translate:"وەرگێڕان ←",history:"وەرگێڕانێن دوماهیێ",clearHistory:"ژێبرنا هەمی",aboutTitle:"دەربارەی سایتی",aboutOwner:"ئەڤ سایتە هاتییە دروستکرن ژ لایێ غریب احمد ڤە.",aboutText:"ئەم سایتە ب مەبەستا پشتەڤانیکرنا زمانێ کوردیا بادینی و ئاسانکرنا وەرگێڕانێ د ناڤبەرا بادینی و زمانێن جیهانی دا، ب شێوەیەکێ بلەز و ئاسان، هاتییە دروستکرن.",footer:"دەق و وێنە تەنێ پشتی داخوازییا وەرگێڕانێ بۆ ژیرێن دەستکرد (Gemini, Groq, NVIDIA, Mistral, Cloudflare, OpenRouter) دهێنە فرێکرن.",
- empty:"تکایە دەقەکێ بنڤیسە یان وێنەیەکێ هەلبژێرە.",working:"دەمەکێ کورت چاڤەڕێ بکە...",noText:"چ نڤیسینەکا دیار د ناڤ وێنەی دا نەهاتە دیتن.",imageBad:"ئەڤ وێنەیە نەشێت بهێتە خاندن. تکایە JPEG یان PNG بکاربینە.",imageType:"جۆرێ وێنەی نەگونجایە. JPEG، PNG یان WebP هەلبژێرە.",imageSize:"قەبارێ وێنەی گەلەک مەزنە. وێنەیەکا بچووکتر هەلبژێرە.",tooLong:"دەق زێدەتر ژ 3000 پیتە.",apiKey:"کێشە ل کلیلێ API دا هەیە. پێدڤییە خودانێ سایتی کلیلێ بپشکنیت.",quota:"سنوورێ بکارئینانێ پڕ بوویە. دەمەکێ دی دووبارە هەوڵ بدە.",timeout:"وەختێ داخوازیێ تەمام بوو. دووبارە هەوڵ بدە.",network:"کێشا ئینتەرنێتێ هەیە. پەیوەندییا خۆ بپشکنە.",server:"خەلەتیەکا سێرڤەری ڕووی دا. دەمەکێ دی هەوڵ بدە.",rate:"گەلەک ب لەزی داخوازی هاتنە فرێکرن. کەمێ چاڤەڕێ بکە.",historyEmpty:"هێشتا چ وەرگێڕانەک نەهاتییە پاراستن.",imageMarker:"📷 [وەرگێڕانا وێنەی]"
+ brand:"وەرگێڕان",tagline:"بادینی و زمانێن جیهانی",heroTitle:"پەیڤان ب ئاسانی وەربگێڕە",heroSub:"ژ کوردیا بادینی بۆ زمانێن جیهانی و بەروڤاژی.",
+ from:"ژ زمانێ",to:"بۆ زمانێ",style:"شێواز:",normal:"ئاسایی",formal:"فەرمی",everyday:"ڕۆژانە",inputTitle:"دەقێ تە",outputTitle:"وەرگێڕان",inputPlaceholder:"دەقێ خۆ ل ڤێرێ بنڤیسە...",outputPlaceholder:"وەرگێڕان ل ڤێرێ دیار دبیت...",clear:"پاقژکرن",fixBadini:"✍️ راستڤەکرنا بادینی",fixing:"ڕێنڤیسا بادینی دهێتە راستڤەکرن...",fixed:"ڕێنڤیس ب AI هاتە راستڤەکرن ✓",maxWords:"هەری زێدە 100 پەیڤ",wordsUnit:"پەیڤ",copy:"📋 کۆپی",copied:"هاتە کۆپیکرن ✓",speak:"🔊 بخوینە",explainBtn:"💡 شیکارکرن و نموونە",explaining:"AI یێ شیکارکرن و نموونەیان ئامادە دکەت...",explainTitle:"💡 شیکارکرن و نموونە ب AI",translate:"وەرگێڕان ←",history:"وەرگێڕانێن دووماهیێ",clearHistory:"ژێبرنا هەمیان",aboutTitle:"دەربارەی سایتی",aboutOwner:"ئەڤ سایتە هاتییە دروستکرن ژ لایێ غریب احمد ڤە.",aboutText:"ئەڤ سایتە ب مەبەستا پشتەڤانیکرنا زمانێ کوردیا بادینی و ئاسانکرنا وەرگێڕانێ د ناڤبەرا بادینی و زمانێن جیهانی دا، ب شێوەیەکێ بلەز و ئاسان، هاتییە دروستکرن.",footer:"دەق و وێنە ب تنێ پشتی داخوازییا وەرگێڕانێ بۆ ژیرێن دەستکرد (Gemini, Groq, NVIDIA, Cloudflare, OpenRouter) دهێنە ڤرێکرن.",
+ empty:"بێ زەحمەت دەقەکێ بنڤیسە یان وێنەیەکێ هەلبژێرە.",working:"دەمەکێ کورت چاڤەڕێ بکە...",noText:"چو نڤیسینەکا دیار د ناڤ وێنەی دا نەهاتە دیتن.",imageBad:"ئەڤ وێنەیە نەشێت بهێتە خواندن. بێ زەحمەت JPEG یان PNG بکاربینە.",imageType:"جۆرێ وێنەی نەگونجایە. JPEG، PNG یان WebP هەلبژێرە.",imageSize:"قەبارێ وێنەی گەلەک مەزنە. وێنەیەکێ بچووکتر هەلبژێرە.",tooLong:"دەق ژ 100 پەیڤان زێدەترە! بێ زەحمەت ژ 100 پەیڤان کێمتر بکە دا بهێتە وەرگێڕان.",apiKey:"کێشە ل کلیلێ API دا هەیە. پێدڤییە خودانێ سایتی کلیلێ بپشکنیت.",quota:"سنوورێ بکارئینانێ پڕ بوویە. دەمەکێ دی جارەکا دی هەول بدە.",timeout:"وەختێ داخوازییێ تەمام بوو. جارەکا دی هەول بدە.",network:"کێشەیا ئینتەرنێتێ هەیە. پەیوەندییا خۆ بپشکنە.",server:"خەلەتییەکا سێرڤەری چێبوو. دەمەکێ دی هەول بدە.",rate:"گەلەک ب لەزی داخوازی هاتنە ڤرێکرن. کێمەکێ چاڤەڕێ بکە.",historyEmpty:"هێشتا چو وەرگێڕانەک نەهاتییە پاراستن.",imageMarker:"📷 [وەرگێڕانا وێنەی]"
  },
  en:{
  brand:"Translate",tagline:"Badini & world languages",heroTitle:"Translate words with ease",heroSub:"From Badini Kurdish to world languages and back.",
- from:"From",to:"To",style:"Style:",normal:"Natural",formal:"Formal",everyday:"Everyday",inputTitle:"Your text",outputTitle:"Translation",inputPlaceholder:"Type or paste your text here...",outputPlaceholder:"Your translation will appear here...",clear:"Clear",fixBadini:"✍️ Fix Badini",fixing:"Polishing Badini text...",fixed:"Badini spelling fixed ✓",maxChars:"Maximum 3,000 characters",copy:"📋 Copy",copied:"Copied ✓",speak:"🔊 Listen",explainBtn:"💡 Explain & Examples",explaining:"Generating AI explanation & examples...",explainTitle:"💡 AI Explanation & Examples",translate:"Translate →",history:"Recent translations",clearHistory:"Clear all",aboutTitle:"About",aboutOwner:"This website was created by Gharib Ahmad.",aboutText:"This website was created to support Badini Kurdish and make translation between Badini and world languages fast and easy.",footer:"Text and images are sent to AI providers (Gemini, Groq, NVIDIA, Mistral, Cloudflare, OpenRouter) only when you request a translation.",
- empty:"Please enter text or choose an image.",working:"Translating...",noText:"No readable text was found in this image.",imageBad:"This image could not be read. Please use a JPEG or PNG image.",imageType:"Unsupported image type. Choose JPEG, PNG, or WebP.",imageSize:"The image is too large. Please choose a smaller image.",tooLong:"Text exceeds 3,000 characters.",apiKey:"There is an API key problem. The site owner needs to check the key.",quota:"The usage quota has been reached. Please try again later.",timeout:"The request timed out. Please try again.",network:"Network error. Check your internet connection.",server:"A server error occurred. Please try again later.",rate:"Too many requests. Please wait a moment.",historyEmpty:"No translations saved yet.",imageMarker:"📷 [Image translation]"
+ from:"From",to:"To",style:"Style:",normal:"Natural",formal:"Formal",everyday:"Everyday",inputTitle:"Your text",outputTitle:"Translation",inputPlaceholder:"Type or paste your text here...",outputPlaceholder:"Your translation will appear here...",clear:"Clear",fixBadini:"✍️ Fix Badini",fixing:"Polishing Badini text...",fixed:"Badini spelling fixed ✓",maxWords:"Maximum 100 words",wordsUnit:"words",copy:"📋 Copy",copied:"Copied ✓",speak:"🔊 Listen",explainBtn:"💡 Explain & Examples",explaining:"Generating AI explanation & examples...",explainTitle:"💡 AI Explanation & Examples",translate:"Translate →",history:"Recent translations",clearHistory:"Clear all",aboutTitle:"About",aboutOwner:"This website was created by Gharib Ahmad.",aboutText:"This website was created to support Badini Kurdish and make translation between Badini and world languages fast and easy.",footer:"Text and images are sent to AI providers (Gemini, Groq, NVIDIA, Cloudflare, OpenRouter) only when you request a translation.",
+ empty:"Please enter text or choose an image.",working:"Translating...",noText:"No readable text was found in this image.",imageBad:"This image could not be read. Please use a JPEG or PNG image.",imageType:"Unsupported image type. Choose JPEG, PNG, or WebP.",imageSize:"The image is too large. Please choose a smaller image.",tooLong:"Text exceeds 100 words! Please shorten it to 100 words or fewer.",apiKey:"There is an API key problem. The site owner needs to check the key.",quota:"The usage quota has been reached. Please try again later.",timeout:"The request timed out. Please try again.",network:"Network error. Check your internet connection.",server:"A server error occurred. Please try again later.",rate:"Too many requests. Please wait a moment.",historyEmpty:"No translations saved yet.",imageMarker:"📷 [Image translation]"
  },
  ar:{
  brand:"الترجمة",tagline:"البادينية ولغات العالم",heroTitle:"ترجم الكلمات بسهولة",heroSub:"من الكردية البادينية إلى لغات العالم وبالعكس.",
- from:"من اللغة",to:"إلى اللغة",style:"الأسلوب:",normal:"طبيعي",formal:"رسمي",everyday:"يومي",inputTitle:"النص",outputTitle:"الترجمة",inputPlaceholder:"اكتب النص هنا...",outputPlaceholder:"ستظهر الترجمة هنا...",clear:"مسح",fixBadini:"✍️ تصحيح البادينية",fixing:"جارٍ تصحيح النص الباديني...",fixed:"تم تصحيح الإملاء بالذكاء الاصطناعي ✓",maxChars:"الحد الأقصى ٣٠٠٠ حرف",copy:"📋 نسخ",copied:"تم النسخ ✓",speak:"🔊 استمع",explainBtn:"💡 شرح وأمثلة",explaining:"جارٍ إعداد الشرح والأمثلة...",explainTitle:"💡 شرح وأمثلة بالذكاء الاصطناعي",translate:"ترجم ←",history:"الترجمات الأخيرة",clearHistory:"مسح الكل",aboutTitle:"حول الموقع",aboutOwner:"تم إنشاء هذا الموقع من قبل غريب أحمد.",aboutText:"تم إنشاء هذا الموقع لدعم اللغة الكردية البادينية وتسهيل الترجمة بينها وبين لغات العالم بسرعة وسهولة.",footer:"لا يتم إرسال النصوص والصور إلى مزودي الذكاء الاصطناعي (Gemini, Groq, NVIDIA, Mistral, Cloudflare, OpenRouter) إلا عند الطلب.",
- empty:"يرجى كتابة نص أو اختيار صورة.",working:"جارٍ الترجمة...",noText:"لم يتم العثور على نص واضح في الصورة.",imageBad:"تعذرت قراءة الصورة. يرجى استخدام JPEG أو PNG.",imageType:"نوع الصورة غير مدعوم. اختر JPEG أو PNG أو WebP.",imageSize:"حجم الصورة كبير جدًا. اختر صورة أصغر.",tooLong:"النص يتجاوز ٣٠٠٠ حرف.",apiKey:"توجد مشكلة في مفتاح API. يجب على مالك الموقع التحقق منه.",quota:"تم بلوغ حد الاستخدام. حاول لاحقًا.",timeout:"انتهت مهلة الطلب. حاول مرة أخرى.",network:"مشكلة في الاتصال. تحقق من الإنترنت.",server:"حدث خطأ في الخادم. حاول لاحقًا.",rate:"طلبات كثيرة جدًا. يرجى الانتظار قليلًا.",historyEmpty:"لا توجد ترجمات محفوظة بعد.",imageMarker:"📷 [ترجمة صورة]"
+ from:"من اللغة",to:"إلى اللغة",style:"الأسلوب:",normal:"طبيعي",formal:"رسمي",everyday:"يومي",inputTitle:"النص",outputTitle:"الترجمة",inputPlaceholder:"اكتب النص هنا...",outputPlaceholder:"ستظهر الترجمة هنا...",clear:"مسح",fixBadini:"✍️ تصحيح البادينية",fixing:"جارٍ تصحيح النص الباديني...",fixed:"تم تصحيح الإملاء بالذكاء الاصطناعي ✓",maxWords:"الحد الأقصى ١٠٠ كلمة",wordsUnit:"كلمة",copy:"📋 نسخ",copied:"تم النسخ ✓",speak:"🔊 استمع",explainBtn:"💡 شرح وأمثلة",explaining:"جارٍ إعداد الشرح والأمثلة...",explainTitle:"💡 شرح وأمثلة بالذكاء الاصطناعي",translate:"ترجم ←",history:"الترجمات الأخيرة",clearHistory:"مسح الكل",aboutTitle:"حول الموقع",aboutOwner:"تم إنشاء هذا الموقع من قبل غريب أحمد.",aboutText:"تم إنشاء هذا الموقع لدعم اللغة الكردية البادينية وتسهيل الترجمة بينها وبين لغات العالم بسرعة وسهولة.",footer:"لا يتم إرسال النصوص والصور إلى مزودي الذكاء الاصطناعي (Gemini, Groq, NVIDIA, Cloudflare, OpenRouter) إلا عند الطلب.",
+ empty:"يرجى كتابة نص أو اختيار صورة.",working:"جارٍ الترجمة...",noText:"لم يتم العثور على نص واضح في الصورة.",imageBad:"تعذرت قراءة الصورة. يرجى استخدام JPEG أو PNG.",imageType:"نوع الصورة غير مدعوم. اختر JPEG أو PNG أو WebP.",imageSize:"حجم الصورة كبير جدًا. اختر صورة أصغر.",tooLong:"النص يتجاوز ١٠٠ كلمة! يرجى تقليله إلى ١٠٠ كلمة أو أقل.",apiKey:"توجد مشكلة في مفتاح API. يجب على مالك الموقع التحقق منه.",quota:"تم بلوغ حد الاستخدام. حاول لاحقًا.",timeout:"انتهت مهلة الطلب. حاول مرة أخرى.",network:"مشكلة في الاتصال. تحقق من الإنترنت.",server:"حدث خطأ في الخادم. حاول لاحقًا.",rate:"طلبات كثيرة جدًا. يرجى الانتظار قليلًا.",historyEmpty:"لا توجد ترجمات محفوظة بعد.",imageMarker:"📷 [ترجمة صورة]"
  }
 };
+const MAX_WORDS = 100;
 let selectedStyle="normal", imageData=null, busy=false, lastRequest=0;
+const countWords = s => {const t=(s||"").trim();return t?t.split(/\s+/).length:0;};
 const languageName = (code,ui="ku") => {const l=languages.find(x=>x[0]===code);return l?l[ui==="en"?2:ui==="ar"?3:1]:code;};
 function populate(){
  $("fromLang").innerHTML='<option value="auto">Auto-Detect / ناسینا خۆکار</option>'+languages.map(l=>`<option value="${l[0]}">${l[1]}</option>`).join("");
@@ -174,12 +177,30 @@ function populate(){
  $("fromLang").value="auto";$("toLang").value="ku-Ar";
 }
 function setStatus(msg,error=false){$("status").textContent=msg||"";$("status").classList.toggle("error",!!error);}
-function ui(){const lang=$("uiLang").value, d=dict[lang];document.documentElement.lang=lang;document.documentElement.dir=lang==="en"?"ltr":"rtl";document.body.dir=lang==="en"?"ltr":"rtl";
+function setCounter(){
+ const w=countWords($("sourceText").value), d=dict[$("uiLang").value];
+ $("counter").textContent=w+" / "+MAX_WORDS+" "+d.wordsUnit;
+ $("counter").classList.toggle("over",w>MAX_WORDS);
+}
+function ui(){
+ const lang=$("uiLang").value, d=dict[lang];
+ document.documentElement.lang=lang;
+ document.documentElement.dir=lang==="en"?"ltr":"rtl";
+ document.body.dir=lang==="en"?"ltr":"rtl";
  document.querySelectorAll("[data-i18n]").forEach(el=>{const key=el.dataset.i18n;if(d[key]!==undefined)el.textContent=d[key];});
  document.querySelectorAll("[data-placeholder]").forEach(el=>el.placeholder=d[el.dataset.placeholder]);
- $("outputLangLabel").textContent=languageName($("toLang").value,lang);renderHistory();}
-function setCounter(){$("counter").textContent=$("sourceText").value.length+" / 3000";}
-function updateDirection(){const f=$("fromLang").value,t=$("toLang").value;$("sourceText").dir=(f==="ku-Ar"||f==="ar"||f==="fa")?"rtl":"auto";$("resultText").dir=(t==="ku-Ar"||t==="ar"||t==="fa")?"rtl":"auto";$("outputLangLabel").textContent=languageName(t,$("uiLang").value);$("speakBtn").hidden=t==="ku-Ar"||t==="ku-Latn";}
+ $("outputLangLabel").textContent=languageName($("toLang").value,lang);
+ setCounter();
+ renderHistory();
+}
+function updateDirection(){
+ const f=$("fromLang").value,t=$("toLang").value;
+ const isRtl = c => c==="ku-Ar"||c==="ar"||c==="fa";
+ $("sourceText").dir = f==="auto" ? "auto" : (isRtl(f) ? "rtl" : "ltr");
+ $("resultText").dir = isRtl(t) ? "rtl" : "ltr";
+ $("outputLangLabel").textContent=languageName(t,$("uiLang").value);
+ $("speakBtn").hidden=t==="ku-Ar"||t==="ku-Latn";
+}
 function getHistory(){try{return JSON.parse(localStorage.getItem("badini_translate_history")||"[]").slice(0,10)}catch{return []}}
 function saveHistory(item){const h=getHistory();h.unshift(item);localStorage.setItem("badini_translate_history",JSON.stringify(h.slice(0,10)));renderHistory();}
 function renderHistory(){const h=getHistory(),d=dict[$("uiLang").value];$("historyList").innerHTML="";if(!h.length){const p=document.createElement("p");p.textContent=d.historyEmpty;p.style.cssText="font-size:11px;color:var(--muted)";$("historyList").append(p);return;}
@@ -189,7 +210,7 @@ function showImage(file){if(!file)return;const mime=(file.type||"").toLowerCase(
  const reader=new FileReader();reader.onload=()=>{const img=new Image();img.onload=()=>{try{const scale=Math.min(1,1600/Math.max(img.width,img.height));const canvas=document.createElement("canvas");canvas.width=Math.max(1,Math.round(img.width*scale));canvas.height=Math.max(1,Math.round(img.height*scale));const ctx=canvas.getContext("2d");ctx.drawImage(img,0,0,canvas.width,canvas.height);let q=.82,blob;do{blob=canvas.toDataURL("image/jpeg",q);q-=.1;}while(blob.length>1.4*1024*1024&&q>=.42);if(blob.length>1.4*1024*1024){setStatus(dict[$("uiLang").value].imageSize,true);return;}imageData={mimeType:"image/jpeg",data:blob.split(",")[1],name:file.name||"image.jpg"};$("previewImg").src=blob;$("imageName").textContent=file.name||"image.jpg";$("imagePreview").classList.add("show");setStatus("");}catch{setStatus(dict[$("uiLang").value].imageBad,true);}};img.onerror=()=>setStatus(dict[$("uiLang").value].imageBad,true);img.src=reader.result;};reader.onerror=()=>setStatus(dict[$("uiLang").value].imageBad,true);reader.readAsDataURL(file);}
 function clearImage(){imageData=null;$("imagePreview").classList.remove("show");$("cameraInput").value="";$("galleryInput").value="";}
 function setBusy(state){busy=state;$("translateBtn").disabled=state;$("fixBtn").disabled=state;$("explainBtn").disabled=state;}
-function handleError(e,d){let msg=d.server;if(e.name==="AbortError")msg=d.timeout;else if(e.message==="api_key"||e.status===401||e.status===403)msg=d.apiKey;else if(e.message==="quota")msg=d.quota;else if(e.message==="rate"||e.status===429)msg=d.rate;else if(e.message==="timeout"||e.status===504)msg=d.timeout;else if(e.message==="bad_image")msg=d.imageType;else if(e.message==="too_large")msg=d.imageSize;else if(e.message==="bad_input")msg=d.empty;else if(e instanceof TypeError)msg=d.network;setStatus(msg,true);}
+function handleError(e,d){let msg=d.server;if(e.name==="AbortError")msg=d.timeout;else if(e.message==="api_key"||e.status===401||e.status===403)msg=d.apiKey;else if(e.message==="quota")msg=d.quota;else if(e.message==="rate"||e.status===429)msg=d.rate;else if(e.message==="timeout"||e.status===504)msg=d.timeout;else if(e.message==="bad_image")msg=d.imageType;else if(e.message==="too_large")msg=d.imageSize;else if(e.message==="too_many_words")msg=d.tooLong;else if(e.message==="bad_input")msg=d.empty;else if(e instanceof TypeError)msg=d.network;setStatus(msg,true);}
 
 async function callAI(payload){
  const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),22000);
@@ -201,25 +222,25 @@ async function callAI(payload){
  }finally{clearTimeout(timer);}
 }
 
-async function translate(){if(busy)return;const text=$("sourceText").value.trim(),d=dict[$("uiLang").value];if(!text&&!imageData){setStatus(d.empty,true);return;}if(text.length>3000){setStatus(d.tooLong,true);return;}if(Date.now()-lastRequest<1100){setStatus(d.rate,true);return;}lastRequest=Date.now();setBusy(true);$("translateBtn").textContent="…";setStatus(d.working);$("resultText").value="";$("explainBox").classList.remove("show");
+async function translate(){if(busy)return;const text=$("sourceText").value.trim(),d=dict[$("uiLang").value];if(!text&&!imageData){setStatus(d.empty,true);return;}if(countWords(text)>MAX_WORDS||text.length>2500){setStatus(d.tooLong,true);return;}if(Date.now()-lastRequest<1100){setStatus(d.rate,true);return;}lastRequest=Date.now();setBusy(true);$("translateBtn").textContent="…";setStatus(d.working);$("resultText").value="";$("explainBox").classList.remove("show");
  try{const data=await callAI({mode:"translate",text,from:$("fromLang").value,to:$("toLang").value,style:selectedStyle,image:imageData?{mimeType:imageData.mimeType,data:imageData.data}:null});
  if(data.noText&&!text){setStatus(d.noText,true);return;}
  const result=data.translation||"";if(!result){setStatus(d.noText,true);return;}
- $("resultText").value=result;$("resultCount").textContent=result.length+"";
+ $("resultText").value=result;$("resultCount").textContent=countWords(result)+" "+d.wordsUnit;
  saveHistory({from:languageName($("fromLang").value,$("uiLang").value),to:languageName($("toLang").value,$("uiLang").value),input:(text||"")+(imageData?" "+d.imageMarker:""),output:result});
  setStatus(data.noText?d.noText:(data.provider?"✨ AI: "+data.provider:""));
  }catch(e){handleError(e,d);}
  finally{setBusy(false);$("translateBtn").textContent=dict[$("uiLang").value].translate;}
 }
 
-async function fixBadini(){if(busy)return;const text=$("sourceText").value.trim(),d=dict[$("uiLang").value];if(!text){setStatus(d.empty,true);return;}if(text.length>3000){setStatus(d.tooLong,true);return;}lastRequest=Date.now();setBusy(true);setStatus(d.fixing);
+async function fixBadini(){if(busy)return;const text=$("sourceText").value.trim(),d=dict[$("uiLang").value];if(!text){setStatus(d.empty,true);return;}if(countWords(text)>MAX_WORDS||text.length>2500){setStatus(d.tooLong,true);return;}lastRequest=Date.now();setBusy(true);setStatus(d.fixing);
  try{const data=await callAI({mode:"fix",text,from:$("fromLang").value,ui:$("uiLang").value});
  if(data.translation){$("sourceText").value=data.translation;setCounter();setStatus(d.fixed+(data.provider?" ("+data.provider+")":""));}
  }catch(e){handleError(e,d);}
  finally{setBusy(false);}
 }
 
-async function explainResult(){if(busy)return;const text=$("sourceText").value.trim(),out=$("resultText").value.trim(),d=dict[$("uiLang").value];if(!text&&!out){setStatus(d.empty,true);return;}lastRequest=Date.now();setBusy(true);setStatus(d.explaining);
+async function explainResult(){if(busy)return;const text=$("sourceText").value.trim(),out=$("resultText").value.trim(),d=dict[$("uiLang").value];if(!text&&!out){setStatus(d.empty,true);return;}if(countWords(text)>MAX_WORDS){setStatus(d.tooLong,true);return;}lastRequest=Date.now();setBusy(true);setStatus(d.explaining);
  try{const data=await callAI({mode:"explain",text,translation:out,from:$("fromLang").value,to:$("toLang").value,ui:$("uiLang").value});
  if(data.translation){$("explainBody").textContent=data.translation;$("explainBox").classList.add("show");setStatus(data.provider?"✨ AI: "+data.provider:"");}
  }catch(e){handleError(e,d);}
