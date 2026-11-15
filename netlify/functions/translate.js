@@ -27,8 +27,7 @@ function reply(statusCode, body) {
 }
 function badiniRules(to) {
   if (to === "ku-Ar") return "Target language is authentic Badini Kurdish in Arabic script, specifically Zakho/Duhok dialect. Use natural local Badini grammar and vocabulary. Prefer forms such as ئەڤە، چاوا، دێ، ئەز دچم، نینە، گەلەک، هەوە، پێدڤی. Never use Sorani forms such as ئەمە، چۆن، دەکەم، نییە، زۆر، ئێوە، پێویست. Do not mix dialects. Preserve meaning, tone, paragraphing, punctuation and numbering.";
-  if (to === "ku-Latn") return "Target language is natural Badini/Kurmanji Kurdish in Latin script using the Bedirxan alphabet, including ç, ê, î, ş, û. Use correct Kurmanji-Badini grammar. Do not mix Sorani or Turkish. Preserve meaning, tone, paragraphing, punctuation and numbering.";
-  return "";
+if (to === "ku-Latn") return "Target language is natural Badini/Kurmanji Kurdish in pure Latin script using ONLY the Bedirxan (Hawar) alphabet (a, b, c, ç, d, e, ê, f, g, h, i, î, j, k, l, m, n, o, p, q, r, s, ş, t, u, û, v, w, x, y, z). CRITICAL: NEVER output ANY Arabic-script characters—every single word, including weather or loanwords (e.g., kesuhewa / hewa for کەشوهەوا), MUST be translated into Latin script. Use authentic Zakho/Duhok Badini grammar and proper oblique endings (e.g., bazarî, ez dê biçim, hevdu/êkdu bibînin). Never mix Sorani or Turkish. Preserve meaning, tone, paragraphing, punctuation and numbering.";  return "";
 }
 function countCodePoints(s) { return Array.from(s).length; }
 function safeError(status, code) { return reply(status, { error: code }); }
