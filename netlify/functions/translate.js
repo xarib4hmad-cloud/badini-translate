@@ -7,9 +7,12 @@
 //  4) فەرهەنگا چاککرنا Sorani -> Badini فرەهتر و ب ئاسانی دهێتە زێدەکرن
 
 // ───────────── ڕێکخستن ─────────────
-const TOTAL_BUDGET_MS = Number(process.env.FUNCTION_BUDGET_MS) || 23000;
-const CHUNK_MAX_CHARS = 400; // درێژاتیا هەر پارچەیەکێ
-const CONCURRENCY = 3; // چەند پارچە ب هەڤڕا
+// Netlify بەرەڤاژی 10 چرکەیانە. ئەڤە 8.5 چرکەیە دا کو هەمیشە بەرسڤەکێ بدەت.
+// ئەگەر timeout ل netlify.toml زێدە کر، FUNCTION_BUDGET_MS ژی زێدە بکە (مثلاً 23000).
+const TOTAL_BUDGET_MS = Number(process.env.FUNCTION_BUDGET_MS) || 8500;
+const HEDGE_DELAY_MS = 2800; // پشتی چەند چرکەیان پرۆڤایدەرێ دووێ ب هەڤڕا دەست پێ دکەت
+const CHUNK_MAX_CHARS = 500; // درێژاتیا هەر پارچەیەکێ
+const CONCURRENCY = 4; // چەند پارچە ب هەڤڕا
 
 const MODELS = {
   gemini: [
@@ -438,7 +441,7 @@ async function callGemini(systemPrompt, userPrompt, image, polishBadini, deadlin
             generationConfig: geminiGenerationConfig(model),
           }),
         },
-        i === 0 ? 10000 : 6000,
+        i === 0 ? 5500 : 4000,
         deadline
       );
 
@@ -460,7 +463,7 @@ async function callGemini(systemPrompt, userPrompt, image, polishBadini, deadlin
   throw new Error(lastErr);
 }
 
-async function callOpenAICompatible({ name, url, apiKey, model, systemPrompt, userPrompt, image, polishBadini, deadline, extraBody = {}, extraHeaders = {}, timeoutMs = 8000 }) {
+async function callOpenAICompatible({ name, url, apiKey, model, systemPrompt, userPrompt, image, polishBadini, deadline, extraBody = {}, extraHeaders = {}, timeoutMs = 6000 }) {
   const content = image?.data
     ? [
         { type: "text", text: userPrompt },
@@ -558,7 +561,7 @@ async function callCloudflare(systemPrompt, userPrompt, image, polishBadini, dea
         ],
       }),
     },
-    8000,
+    6000,
     deadline
   );
 
@@ -584,12 +587,67 @@ const PROVIDERS = [
   },
 ];
 
+
+// ───────────── هەڤڕکیا پرۆڤایدەران (hedging) ─────────────
+// پرۆڤایدەرێ ئێکێ دەست پێ دکەت. ئەگەر دیر بوو یان سەرنەکەفت، یێ دووێ ب هەڤڕا دەست پێ دکەت.
+// هەر کێ ب زویی بەرسڤ دا، ئەو دهێتە وەرگرتن.
+function raceProviders(list, runner, deadline, errors, started) {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    let nextIdx = 0;
+    let active = 0;
+    const timers = [];
+
+    const finish = (fn, value) => {
+      if (done) return;
+      done = true;
+      timers.forEach(clearTimeout);
+      fn(value);
+    };
+
+    const startNext = () => {
+      if (done || nextIdx >= list.length) return;
+      const p = list[nextIdx++];
+      started.push(p.name);
+      active++;
+      runner(p).then(
+        (value) => finish(resolve, { provider: p, ...value }),
+        (err) => {
+          active--;
+          const kind = err?.name === "AbortError" ? "timeout" : err?.message || "server";
+          errors.push({ provider: p.name, error: kind });
+          logFail(p.name, kind);
+          if (done) return;
+          if (nextIdx < list.length) startNext();
+          else if (active === 0) finish(reject, new Error("all_failed"));
+        }
+      );
+    };
+
+    const scheduleHedge = () => {
+      timers.push(
+        setTimeout(() => {
+          startNext();
+          if (nextIdx < list.length) scheduleHedge();
+        }, HEDGE_DELAY_MS)
+      );
+    };
+
+    timers.push(
+      setTimeout(() => finish(reject, new Error("deadline")), Math.max(500, deadline - Date.now() - 300))
+    );
+    startNext();
+    scheduleHedge();
+  });
+}
+
 // ───────────── پێداچوونا رێزمانی ─────────────
 // مۆدێلەکێ جودا (ئەگەر هەبیت) دەقێ بادینی دگەل ڕەسەنی بەراورد دکەت و چاک دکەت
-async function reviewSegments(drafts, sources, mainProvider, to, deadline) {
+async function reviewSegments(drafts, sources, mainProvider, to, deadline, failedNames = []) {
+  // پرۆڤایدەرێن د ڤێ داخوازیێ دا سەرنەکەفتین (هێدی/timeout) بۆ پێداچوونێ نەهێنە بکارئینان
   const reviewer =
-    PROVIDERS.find((p) => p.name !== mainProvider.name && p.hasKey()) || mainProvider;
-  const reviewDeadline = Math.min(deadline - 300, Date.now() + 9000);
+    PROVIDERS.find((p) => p.name !== mainProvider.name && p.hasKey() && !failedNames.includes(p.name)) || mainProvider;
+  const reviewDeadline = Math.min(deadline - 1200, Date.now() + 3500);
   const system = buildReviewSystem(to);
 
   return mapLimit(drafts, CONCURRENCY, async (draft, i) => {
@@ -658,56 +716,69 @@ exports.handler = async (event) => {
   const useChunks = (mode === "translate" || mode === "fix") && !image?.data && !!text;
   const segments = useChunks ? splitText(text) : null;
 
-  let lastError = "server";
-  let hasAnyKey = false;
+  const candidates = PROVIDERS.filter(
+    (p) => p.hasKey() && !(image?.data && p.name === "Cloudflare")
+  );
+  if (!candidates.length) return json(401, { error: "api_key" });
 
-  for (const provider of PROVIDERS) {
-    if (deadline - Date.now() < 2000) break;
+  // یەک پرۆڤایدەر: وەرگێڕان (ب پارچە یان ب ئێک داخواز)
+  const runPipeline = async (provider) => {
+    if (useChunks) {
+      const draftParts = await mapLimit(segments, CONCURRENCY, (seg) =>
+        provider.run(systemPrompt, seg.t, null, polishBadini, deadline)
+      );
+      return { draftParts, result: draftParts.map((p, i) => p + segments[i].sep).join("").trim() };
+    }
+    const result = await provider.run(systemPrompt, userPrompt, image, polishBadini, deadline);
+    return { draftParts: null, result };
+  };
+
+  const errors = [];
+  const started = [];
+  let winner;
+  try {
+    winner = await raceProviders(candidates, runPipeline, deadline, errors, started);
+  } catch {
+    const kinds = errors.map((e) => e.error);
+    let error = "timeout";
+    if (kinds.length && kinds.every((k) => k === "api_key")) error = "api_key";
+    else if (kinds.some((k) => k === "rate" || k === "quota") && !kinds.includes("timeout")) error = "rate";
+    else if (kinds.length && !kinds.includes("timeout")) error = "server";
+    const status = error === "api_key" ? 401 : error === "rate" ? 429 : error === "timeout" ? 504 : 500;
+    return json(status, { error, details: errors, elapsedMs: Date.now() - startedAt });
+  }
+
+  let { result, draftParts } = winner;
+  const busyNames = started.filter((n) => n !== winner.provider.name);
+  const provider = winner.provider;
+
+  if (result.includes("__NO_TEXT__")) {
+    return json(200, { translation: "", noText: true, provider: provider.name });
+  }
+
+  // پێداچوونا رێزمانی: تنێ ئەگەر وەخت مای
+  let reviewed = false;
+  if (doReview && deadline - Date.now() > 4500) {
     try {
-      let result;
-      let draftParts = null;
-
       if (useChunks) {
-        draftParts = await mapLimit(segments, CONCURRENCY, (seg) =>
-          provider.run(systemPrompt, seg.t, null, polishBadini, deadline)
-        );
-        result = draftParts.map((p, i) => p + segments[i].sep).join("").trim();
+        const fixedParts = await reviewSegments(draftParts, segments.map((s) => s.t), provider, to, deadline, busyNames);
+        result = fixedParts.map((p, i) => p + segments[i].sep).join("").trim();
       } else {
-        result = await provider.run(systemPrompt, userPrompt, image, polishBadini, deadline);
+        const [fixed] = await reviewSegments([result], [text], provider, to, deadline, busyNames);
+        result = fixed;
       }
-
-      if (result.includes("__NO_TEXT__")) {
-        return json(200, { translation: "", noText: true, provider: provider.name });
-      }
-
-      let reviewed = false;
-      if (doReview && deadline - Date.now() > 6000) {
-        if (useChunks) {
-          const fixedParts = await reviewSegments(
-            draftParts,
-            segments.map((s) => s.t),
-            provider,
-            to,
-            deadline
-          );
-          result = fixedParts.map((p, i) => p + segments[i].sep).join("").trim();
-        } else {
-          const [fixed] = await reviewSegments([result], [text], provider, to, deadline);
-          result = fixed;
-        }
-        reviewed = true;
-      }
-
-      result = cleanOutput(result, polishBadini);
-      return json(200, { translation: result, noText: false, provider: provider.name, reviewed });
-    } catch (err) {
-      if (err.message === "NO_KEY" || err.message === "skip_image") continue;
-      hasAnyKey = true;
-      lastError = err.name === "AbortError" ? "timeout" : err.message;
-      logFail(provider.name, lastError);
+      reviewed = true;
+    } catch {
+      // دەقێ ئێکێ بهێلە
     }
   }
 
-  if (!hasAnyKey) return json(401, { error: "api_key" });
-  return json(lastError === "rate" || lastError === "quota" ? 429 : 500, { error: lastError });
+  result = cleanOutput(result, polishBadini);
+  return json(200, {
+    translation: result,
+    noText: false,
+    provider: provider.name,
+    reviewed,
+    elapsedMs: Date.now() - startedAt,
+  });
 };
