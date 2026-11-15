@@ -97,8 +97,21 @@ function buildPrompt({ mode, text, translation, from, to, style, ui, hasImage })
     .join("\n");
 }
 
+const BADINI_FIXES = {
+  "هەروتسا": "هەروەسا",
+  "هەر وەتسا": "هەروەسا",
+  "پەیفا": "پەیڤا",
+  "ئەفە": "ئەڤە",
+  "بەله": "بەلێ",
+  "گەلەك": "گەلەک",
+};
+
 function cleanOutput(raw) {
-  return (raw || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  let out = (raw || "").replace(/<think>[\s\S]*?<\/think>/gi, "").trim();
+  for (const [wrong, right] of Object.entries(BADINI_FIXES)) {
+    out = out.split(wrong).join(right);
+  }
+  return out;
 }
 
 async function fetchWithTimeout(url, options, ms = 4200) {
