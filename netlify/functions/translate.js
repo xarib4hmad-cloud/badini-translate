@@ -1,36 +1,3 @@
-// netlify/functions/translate.js  (وەشانا 2 - کوالیتیا بادینی یا باشتر)
-//
-// چ هاتیە گوهورین:
-//  1) پرۆمپتا رێزمانێ یا بادینی گەلەک بهێزتر (جێناڤ، ئێرگەتیڤ، ئیزافە، کەسێن کردارێ، نەرێکرن)
-//  2) دەقێ درێژ دهێتە دابەشکرن بۆ پارچەیێن بچووک و ب هەڤڕا دهێنە وەرگێڕان (باشتر + زویتر)
-//  3) پشتی وەرگێڕانێ، پێداچوونەکا رێزمانی ب مۆدێلەکێ دی دهێتە کرن، ب بەراورد دگەل دەقێ ڕەسەن
-//  4) فەرهەنگا چاککرنا Sorani -> Badini فرەهتر و ب ئاسانی دهێتە زێدەکرن
-
-// ───────────── ڕێکخستن ─────────────
-// Netlify بەرەڤاژی 10 چرکەیانە. ئەڤە 8.5 چرکەیە دا کو هەمیشە بەرسڤەکێ بدەت.
-// ئەگەر timeout ل netlify.toml زێدە کر، FUNCTION_BUDGET_MS ژی زێدە بکە (مثلاً 23000).
-const TOTAL_BUDGET_MS = Number(process.env.FUNCTION_BUDGET_MS) || 8500;
-const HEDGE_DELAY_MS = 2800; // پشتی چەند چرکەیان پرۆڤایدەرێ دووێ ب هەڤڕا دەست پێ دکەت
-const CHUNK_MAX_CHARS = 500; // درێژاتیا هەر پارچەیەکێ
-const CONCURRENCY = 4; // چەند پارچە ب هەڤڕا
-
-const MODELS = {
-  gemini: [
-    process.env.GEMINI_MODEL_1 || "gemini-3.8-flash",
-    process.env.GEMINI_MODEL_2 || "gemini-3.5-flash-lite",
-    process.env.GEMINI_MODEL_3 || "gemini-2.5-flash",
-  ],
-  groqText: process.env.GROQ_TEXT_MODEL || "openai/gpt-oss-120b",
-  groqVision: process.env.GROQ_VISION_MODEL || "qwen/qwen3.8-27b",
-  nvidia: process.env.NVIDIA_MODEL || "nvidia/nemotron-3.5-super-vl-120b-a12b",
-  openrouterText: process.env.OPENROUTER_TEXT_MODEL || "openrouter/free",
-  openrouterVision: process.env.OPENROUTER_VISION_MODEL || "nvidia/nemotron-3.5-super-vl:free",
-  cloudflare: process.env.CLOUDFLARE_MODEL || "@cf/moonshotai/kimi-k2.6",
-};
-
-const MAX_WORDS = 500;
-const MAX_CHARS = 3000;
-
 const LANG_NAMES = {
   auto: "Auto-Detect the source language",
   "ku-Ar": "Badini Kurdish (Behdini dialect of Duhok, Zakho, Amedi, Akre) in Kurdish Arabic script (پ، چ، ژ، ڤ، گ، ێ، ۆ، ک، ی، ە)",
@@ -56,73 +23,25 @@ const UI_LANG_NAMES = {
   en: "English",
 };
 
-// ───────────── رێزمانا بادینی ─────────────
 const BADINI_STYLE_RULES = `
-CRITICAL BADINI KURDISH (BEHDINI) RULES - follow every rule exactly:
-
-1. DIALECT: Write ONLY pure, natural Badini (Duhok / Zakho / Amedi / Akre). NEVER use Sorani words, Sorani verb forms, or Sorani spelling.
-
-2. VOCABULARY (Badini, NOT Sorani):
-   گەلەک (not زۆر), چاوا (not چۆن), ئەڤە/ئەڤ (not ئەمە), دگەل (not لەگەڵ), نینە (not نییە), بەلێ (not بەڵێ/بەڵام), هەروەسا (not هەروەها), ب تنێ (not تەنیا/تەنها), ڤێرێ (not ئێرە), وێرێ (not ئەوێ), ژ بەر کو (not چونکە), پێدڤی (not پێویست), سەقا (not هەوا), زوی (not زوو), دشێم (not دەتوانم), دزانم (not دەزانم), هیڤی یە / بێ زەحمەت (not تکایە), ئەلمانی (not ئەڵمانی), پاقژکرن (not پاککرن), مال (not ماڵ), نها (not ئێستا), ئەڤرۆ (not ئەمڕۆ), دوهی (not دوێنێ), سباهی (not سبەی), کیڤە (not کوێ), هندەک (not هەندێک), هەمی (not هەموو), ئەم (not ئێمە), هوین (not ئێوە), تو (not تۆ), زاڕۆک (not منداڵ).
-
-3. PRONOUNS:
-   Direct: ئەز (I), تو (you), ئەو (he/she/it/they), ئەم (we), هوین (you pl.).
-   Oblique / ergative agent: من، تە، وی (masc.)، وێ (fem.)، مە، هەوە، وان.
-
-4. PRESENT TENSE = prefix د + stem + personal ending:
-   ئەز دچم، تو دچی، ئەو دچیت، ئەم دچین، هوین دچن، ئەو دچن.
-   ئەز دخوینم، تو دخوینی، ئەو دخوینیت، ئەم دخوینین.
-   Negative: prefix نا or ن: ئەز ناچم، ئەز نزانم، ئەو ناخۆت.
-   Progressive: ئەز یێ دچم (m.), ئەز یا دچم (f.), ئەم یێن دچین.
-
-5. FUTURE: دێ + verb: ئەز دێ چم، ئەو دێ هێت، ئەم دێ چینە دهۆکێ.
-   Ability: دشێم + subjunctive: ئەز دشێم بچم. Need/want: من دڤێت بچم، پێدڤی یە ئەز بچم.
-   Subjunctive uses prefix ب: بچم، بکەم، بنڤیسم.
-
-6. PAST INTRANSITIVE (agent in direct case, verb agrees with the agent):
-   ئەز چووم، تو چووی، ئەو چوو، ئەم چووین، هوین چووین، ئەو چوون. ئەز هاتم، ئەو هات.
-
-7. PAST TRANSITIVE = ERGATIVE (VERY IMPORTANT):
-   The agent is in the OBLIQUE case (من، تە، وی، وێ، مە، هەوە، وان) and the verb agrees with the OBJECT, never with the agent.
-   من نان خوار. تە فیلم دیت. وی نامەک نڤیسی. وێ مال پاقژ کر. مە گۆت. وان خانییەک کڕی.
-   NEVER write Sorani forms like وتم / کردم / خواردم / نووسیم.
-
-8. NOUN CASES AND IZAFE:
-   Izafe: masculine -ێ (هەڤالێ من), feminine -ا (مالا من, کتێبا من), plural -ێن (هەڤالێن من).
-   After a noun ending in ە the feminine izafe is written with یا: نموونەیا (NEVER نموونەا).
-   Oblique after prepositions: masculine -ی (ل بازاری), feminine -ێ (ل مالێ).
-
-9. PREPOSITIONS: ل (at/in), ژ (from), ب (with/by), بۆ (for/to), د ... دا (in), دگەل (with), ل سەر (on), ل ژێر (under), ل پشت (behind), ل ناڤ (inside).
-
-10. BE / EXIST: هەیە (there is/has), نینە (there is not), ئەو ل مالێ یە، ئەو ل ڤێرێ نینە.
-
-11. QUESTIONS: چ (what), کێ (who), ل کیڤە (where), کەنگی (when), چاوا (how), چەند (how many), ژ بەر چ (why).
-
-12. SPELLING: use Kurdish ک (not ك), ی (not ي), ە (not ه at word end), ڤ for the V sound, ێ ۆ ڕ ڵ correctly. Never write ەا together. Put spaces correctly around prepositions (ل ، ژ ، ب ، د are separate words except د as a verb prefix).
-
-13. STYLE: Translate the MEANING, not word by word. Re-order the sentence naturally (verb at the end, as in Badini). Do not copy the grammar or word order of the source language.
-
-14. EXAMPLES of correct natural Badini:
+CRITICAL BADINI KURDISH (BEHDINI) RULES:
+1. Write ONLY in pure, natural Badini Kurdish (Duhok/Zakho/Amedi/Akre dialect). NEVER mix in Sorani words or Sorani grammar.
+2. Vocabulary (Badini vs Sorani):
+   - گەلەک (NOT زۆر), چاوا (NOT چۆن), ئەڤە / ئەڤ (NOT ئەمە), دگەل (NOT لەگەڵ), نینە (NOT نییە), بەلێ (NOT بەڵێ/بەڵام), لێ / بەلێ (for "but"), هەروەسا (NOT هەروەها), ب تنێ (NOT تەنیا/تەنها), ڤێرێ (NOT ئێرە), وێرێ (NOT ئەوێ), ژ بەر کو (NOT چونکە/لەبەرئەوەی), پێدڤی (NOT پێویست/پێتڤی), سەقا (NOT کەشوهەوا/هوا), زوی (NOT زوو), دشێم (NOT دەتوانم), دزانم (NOT دەزانم), دکەم (NOT دەکەم), بێ زەحمەت / هیڤی یە (NOT تکایە), ئەلمانی (NOT ئەڵمانی), بێهنەکێ ڤەدەم (NOT پشوو/بێهۆنەکێ).
+3. Grammar:
+   - Future tense uses "دێ": ئەز دێ چم (I will go), ئەو دێ هێت (he/she will come).
+   - Present continuous uses "یێ / یا / یێن" + "دـ": ئەز یێ دچم (I am going), ئەو یا دخوینیت (she is reading).
+   - Past transitive verbs are ERGATIVE: من گۆت (I said), من کر (I did), تە دیت (you saw), وی نڤیسی (he wrote) — NEVER Sorani "وتم/کردم".
+   - Arabic script spelling: Use Kurdish ک (not ك), ی (not ي), ە (not ه at word ends), and NEVER write "ەا" together (write نموونەیا, NOT نموونەا).
+4. Examples of natural Badini:
    - "I am going to the market." -> "ئەز یێ دچمە بازاری."
    - "I bought bread this morning and came home." -> "من ئەڤ سپێدێ نان کڕی و هاتمە مال."
    - "Did you see my friend yesterday?" -> "تە دوهی هەڤالێ من دیت؟"
    - "Tomorrow we will go to Duhok." -> "سباهی ئەم دێ چینە دهۆکێ."
    - "I don't know where he is, he is not here." -> "ئەز نزانم ئەو ل کیڤە یە، ئەو ل ڤێرێ نینە."
    - "Please wait a little, the weather is cold today." -> "بێ زەحمەت کێمەکێ چاڤەڕێ بکە، ئەڤرۆ سەقا سارە."
-   - "The bathroom is between the kitchen and my parents' bedroom." -> "سەرشۆ د ناڤبەرا مەتبەخێ و ژوورا نڤستنا دایبابێن من دایە."
    - "Thank you very much for helping me." -> "گەلەک سوپاس بۆ هاریکاریکرنا تە."
-   - "We clean the whole house on Sunday." -> "ئەم رۆژا یەکشەمبێ هەمی مالێ پاقژ دکەین."
-   - "He wrote a letter yesterday." -> "وی دوهی نامەک نڤیسی."
-   - "I will call you tomorrow." -> "ئەز دێ سباهی تلفونێ بۆ تە کەم."
-   - "Where do you live?" -> "تو ل کیڤە دمینی؟"
-   - "She doesn't like tea." -> "ئەو حەز ژ چایێ ناکەت."
 `.trim();
-
-// ───────────── یارمەتیدەر ─────────────
-function countWords(str) {
-  const t = (str || "").trim();
-  return t ? t.split(/\s+/).length : 0;
-}
 
 function json(statusCode, body) {
   return {
@@ -130,57 +49,11 @@ function json(statusCode, body) {
     headers: {
       "Content-Type": "application/json; charset=utf-8",
       "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Allow-Methods": "POST, OPTIONS",
     },
     body: JSON.stringify(body),
   };
 }
 
-function logFail(provider, detail) {
-  console.error(`[translate] ${provider} failed: ${detail}`);
-}
-
-// پارچەکرنا دەقی ب پەرگراف و ڕستە، دا کو هەر پارچەیەک نە درێژ بیت
-function splitText(text, maxLen = CHUNK_MAX_CHARS) {
-  const segs = [];
-  const paras = text.split(/\n{2,}/);
-  paras.forEach((para, pi) => {
-    const lines = para.split("\n").map((s) => s.trim()).filter(Boolean);
-    lines.forEach((line, li) => {
-      const sentences = line.split(/(?<=[.!?؟…])\s+/);
-      let cur = "";
-      const flush = (sep) => {
-        if (cur) {
-          segs.push({ t: cur, sep });
-          cur = "";
-        }
-      };
-      sentences.forEach((s) => {
-        if (cur && cur.length + s.length + 1 > maxLen) flush(" ");
-        cur = cur ? `${cur} ${s}` : s;
-      });
-      flush(li < lines.length - 1 ? "\n" : pi < paras.length - 1 ? "\n\n" : "");
-    });
-  });
-  return segs.length ? segs : [{ t: text, sep: "" }];
-}
-
-async function mapLimit(items, limit, fn) {
-  const results = new Array(items.length);
-  let next = 0;
-  const workers = Array.from({ length: Math.min(limit, items.length) }, async () => {
-    while (true) {
-      const i = next++;
-      if (i >= items.length) return;
-      results[i] = await fn(items[i], i);
-    }
-  });
-  await Promise.all(workers);
-  return results;
-}
-
-// ───────────── پرۆمپت ─────────────
 function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }) {
   const fromName = LANG_NAMES[from] || from;
   const toName = LANG_NAMES[to] || to;
@@ -196,7 +69,7 @@ function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }
     return {
       systemPrompt: [
         `You are a native Badini Kurdish (Behdini) language editor.`,
-        `Fix spelling, grammar, ergativity, izafe, verb agreement, word spacing, and punctuation mistakes in the user's text. Replace every Sorani word with its Badini equivalent. Do not change the meaning and do not add or remove sentences.`,
+        `Fix spelling, grammar, ergativity, word spacing, and punctuation mistakes in the user's text.`,
         BADINI_STYLE_RULES,
         `- ${scriptHint}`,
         `- Output ONLY the corrected text with NO explanations, NO quotes, and NO markdown.`,
@@ -235,7 +108,7 @@ function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }
       ? "Use a formal, polite, and professional tone."
       : style === "everyday"
       ? "Use natural everyday spoken language."
-      : "Use clear, eloquent, accurate, and natural language.";
+      : "Use clear, accurate, and natural language.";
 
   return {
     systemPrompt: [
@@ -245,8 +118,6 @@ function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }
       `Style: ${styleDesc}`,
       isBadiniTarget ? BADINI_STYLE_RULES : "",
       `Output rules:`,
-      `- Translate the COMPLETE text. Do not skip, shorten or add anything.`,
-      `- Keep the same paragraph breaks as the original.`,
       `- Output ONLY the final translation without explanations, quotes, greetings, or markdown.`,
       hasImage
         ? `- Read all visible text in the image and translate it accurately. If there is no readable text in the image and no user text was provided, reply with exactly: __NO_TEXT__`
@@ -258,45 +129,21 @@ function buildPrompts({ mode, text, translation, from, to, style, ui, hasImage }
   };
 }
 
-function buildReviewSystem(to) {
-  const script =
-    to === "ku-Latn"
-      ? "Keep the Hawar Latin script."
-      : "Keep the Kurdish Arabic script.";
-  return [
-    `You are a senior Badini Kurdish (Behdini) editor and grammar checker.`,
-    `You receive a BADINI DRAFT and, when available, the SOURCE text it was translated from (the source is for checking meaning only).`,
-    `Check the draft sentence by sentence against this checklist and correct every error:`,
-    `a) Sorani words or Sorani verb forms -> replace with Badini.`,
-    `b) Ergative construction in past transitive verbs (agent in oblique case, verb agrees with the object).`,
-    `c) Izafe (-ێ / -ا / -ێن) and oblique endings (-ی / -ێ) on nouns.`,
-    `d) Verb prefix د, personal endings, negation, future with دێ, subjunctive with ب.`,
-    `e) Spelling and spacing (ک ی ە ڤ ێ ۆ, never ەا together, separate prepositions).`,
-    `f) Missing or added content compared with the SOURCE: restore anything missing, remove anything invented.`,
-    `g) Unnatural word-for-word calques from the source language: rewrite them as a native Badini speaker would say it.`,
-    `If the draft is already correct, return it UNCHANGED.`,
-    script,
-    `Keep the same paragraph breaks. Output ONLY the final corrected Badini text with NO comments, NO quotes, NO greetings and NO markdown.`,
-    BADINI_STYLE_RULES,
-  ].join("\n");
-}
-
-// ───────────── چاککرنا دەرکەفتنێ ─────────────
 const BADINI_SUBSTRING_FIXES = {
   "هەروتسا": "هەروەسا",
   "هەر وەتسا": "هەروەسا",
+  "نموونەا": "نموونەیا",
   "پێتڤی": "پێدڤی",
   "پەیفا": "پەیڤا",
   "ئەفە": "ئەڤە",
+  "بەله": "بەلێ",
   "گەلەك": "گەلەک",
   "ئێكێ": "ئێکێ",
   "بێهۆنەکێ ڤەگرتم": "بێهنەکێ ڤەدەم",
   "بێهۆنەکێ": "بێهنەکێ",
 };
 
-// پەیڤێن ب تنێ (Sorani -> Badini)
 const BADINI_WORD_FIXES = [
-  // پەیڤێن گشتی
   ["زۆر", "گەلەک"],
   ["چۆن", "چاوا"],
   ["لەگەڵ", "دگەل"],
@@ -306,68 +153,18 @@ const BADINI_WORD_FIXES = [
   ["تەنیا", "ب تنێ"],
   ["تەنها", "ب تنێ"],
   ["ئێرە", "ڤێرێ"],
-  ["لێرە", "ل ڤێرێ"],
-  ["لەوێ", "ل وێرێ"],
   ["چونکە", "ژ بەر کو"],
   ["لەبەرئەوەی", "ژ بەر کو"],
   ["پێویست", "پێدڤی"],
   ["تکایە", "هیڤی یە"],
   ["بەڵام", "بەلێ"],
   ["بەڵێ", "بەلێ"],
-  ["بەله", "بەلێ"],
-  ["بەڵکو", "بەلکو"],
+  ["دەتوانم", "دشێم"],
+  ["دەزانم", "دزانم"],
+  ["دەکەم", "دکەم"],
   ["زوو", "زوی"],
   ["هوا", "سەقا"],
-  ["ئێستا", "نها"],
-  ["ئەمڕۆ", "ئەڤرۆ"],
-  ["ئەمشەو", "ئەڤشەڤ"],
-  ["دوێنێ", "دوهی"],
-  ["سبەی", "سباهی"],
-  ["کوێ", "کیڤە"],
-  ["هەندێک", "هندەک"],
-  ["هەموو", "هەمی"],
-  ["ماڵ", "مال"],
-  ["منداڵ", "زاڕۆک"],
-  ["ئەڵمانی", "ئەلمانی"],
-  ["پاککرن", "پاقژکرن"],
-  // جێناڤ
-  ["ئێمە", "ئەم"],
-  ["ئێوە", "هوین"],
-  ["تۆ", "تو"],
-  // کردارێن ڕەوشا نها (Sorani دە- -> Badini د-)
-  ["دەتوانم", "دشێم"],
-  ["دەتوانیت", "دشێیت"],
-  ["دەتوانین", "دشێین"],
-  ["دەزانم", "دزانم"],
-  ["دەزانیت", "دزانیت"],
-  ["دەزانین", "دزانین"],
-  ["دەکەم", "دکەم"],
-  ["دەکەیت", "دکەیت"],
-  ["دەکات", "دکەت"],
-  ["دەکەین", "دکەین"],
-  ["دەکەن", "دکەن"],
-  ["دەچم", "دچم"],
-  ["دەچیت", "دچیت"],
-  ["دەچین", "دچین"],
-  ["دەچن", "دچن"],
-  ["دەخۆم", "دخۆم"],
-  ["دەخوێنم", "دخوینم"],
-  ["دەنووسم", "دنڤیسم"],
-  ["دەبینم", "دبینم"],
-  ["دەبێت", "دبیت"],
-  ["دەبن", "دبن"],
-  ["دەهێم", "دهێم"],
-  // کردارێن دەمێ بۆری (Sorani -> ئێرگەتیڤ)
-  ["وتم", "من گۆت"],
-  ["کردم", "من کر"],
 ];
-
-const WORD_BOUNDARY = "[\\s،.؛؟!«»\"()\\-:]";
-const WORD_FIX_REGEXES = BADINI_WORD_FIXES.map(([wrong, right]) => ({
-  re: new RegExp(`(^|${WORD_BOUNDARY})${wrong}(?=$|${WORD_BOUNDARY})`, "g"),
-  right,
-}));
-const IZAFE_FIX_RE = new RegExp(`ەا(?=$|${WORD_BOUNDARY})`, "g");
 
 function cleanOutput(raw, polishBadini) {
   let out = (raw || "")
@@ -377,26 +174,20 @@ function cleanOutput(raw, polishBadini) {
     .trim();
 
   if (polishBadini) {
-    // یەکخستنا پیتێن عەرەبی بۆ کوردی
-    out = out.replace(/ك/g, "ک").replace(/[يى]/g, "ی").replace(/ة/g, "ە");
     for (const [wrong, right] of Object.entries(BADINI_SUBSTRING_FIXES)) {
       out = out.split(wrong).join(right);
     }
-    for (const { re, right } of WORD_FIX_REGEXES) {
+    for (const [wrong, right] of BADINI_WORD_FIXES) {
+      const re = new RegExp(`(^|[\\s،.؛؟!«»"()\\-])${wrong}(?=$|[\\s،.؛؟!«»"()\\-])`, "g");
       out = out.replace(re, `$1${right}`);
     }
-    // نموونەا -> نموونەیا
-    out = out.replace(IZAFE_FIX_RE, "ەیا");
   }
   return out;
 }
 
-// ───────────── داخوازیا تۆڕێ ب وەختێ دیارکری ─────────────
-async function fetchWithTimeout(url, options, ms, deadline) {
-  const allowed = Math.min(ms, deadline - Date.now());
-  if (allowed < 1500) throw new Error("timeout");
+async function fetchWithTimeout(url, options, ms = 3800) {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), allowed);
+  const timer = setTimeout(() => controller.abort(), ms);
   try {
     return await fetch(url, { ...options, signal: controller.signal });
   } finally {
@@ -404,66 +195,49 @@ async function fetchWithTimeout(url, options, ms, deadline) {
   }
 }
 
-function geminiGenerationConfig(model) {
-  const config = { temperature: 0.1, maxOutputTokens: 4096 };
-  if (/^gemini-3/.test(model)) {
-    config.thinkingConfig = { thinkingLevel: /lite/.test(model) ? "minimal" : "low" };
-  } else if (/^gemini-2\.5/.test(model) && !/pro/.test(model)) {
-    config.thinkingConfig = { thinkingBudget: 0 };
-  }
-  return config;
-}
-
-// ───────────── پرۆڤایدەر ─────────────
-async function callGemini(systemPrompt, userPrompt, image, polishBadini, deadline) {
+async function callGemini(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.GEMINI_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
 
+  const models = ["gemini-3.8-flash", "gemini-3.5-flash-lite"];
   const parts = [{ text: userPrompt }];
   if (image?.data && image?.mimeType) {
     parts.push({ inline_data: { mime_type: image.mimeType, data: image.data } });
   }
 
   let lastErr = "server";
-  for (let i = 0; i < MODELS.gemini.length; i++) {
-    if (deadline - Date.now() < 2000) break;
-    const model = MODELS.gemini[i];
+  for (const model of models) {
     try {
       const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(apiKey)}`;
-      const res = await fetchWithTimeout(
-        url,
-        {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            system_instruction: { parts: [{ text: systemPrompt }] },
-            contents: [{ role: "user", parts }],
-            generationConfig: geminiGenerationConfig(model),
-          }),
-        },
-        i === 0 ? 5500 : 4000,
-        deadline
-      );
+      const res = await fetchWithTimeout(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          system_instruction: { parts: [{ text: systemPrompt }] },
+          contents: [{ role: "user", parts }],
+          generationConfig: { temperature: 0.15 },
+        }),
+      });
 
-      if (res.status === 401 || res.status === 403) { lastErr = "api_key"; logFail(model, res.status); continue; }
-      if (res.status === 429) { lastErr = "quota"; logFail(model, res.status); continue; }
-      if (!res.ok) { lastErr = "server"; logFail(model, `${res.status} ${(await res.text()).slice(0, 200)}`); continue; }
+      if (res.status === 401 || res.status === 403) { lastErr = "api_key"; continue; }
+      if (res.status === 429) { lastErr = "quota"; continue; }
+      if (!res.ok) { lastErr = "server"; continue; }
 
       const data = await res.json();
       const out = data?.candidates?.[0]?.content?.parts?.map((p) => p.text || "").join("").trim();
       if (out) return cleanOutput(out, polishBadini);
-      lastErr = "server";
-      logFail(model, "empty response");
-    } catch (err) {
+    } catch {
       lastErr = "timeout";
-      logFail(model, err?.name === "AbortError" ? "timeout" : err?.message);
-      continue;
     }
   }
   throw new Error(lastErr);
 }
 
-async function callOpenAICompatible({ name, url, apiKey, model, systemPrompt, userPrompt, image, polishBadini, deadline, extraBody = {}, extraHeaders = {}, timeoutMs = 6000 }) {
+async function callGroq(systemPrompt, userPrompt, image, polishBadini) {
+  const apiKey = process.env.GROQ_API_KEY;
+  if (!apiKey) throw new Error("NO_KEY");
+
+  const model = image ? "qwen/qwen3.8-27b" : "openai/gpt-oss-120b";
   const content = image?.data
     ? [
         { type: "text", text: userPrompt },
@@ -471,210 +245,161 @@ async function callOpenAICompatible({ name, url, apiKey, model, systemPrompt, us
       ]
     : userPrompt;
 
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}`, ...extraHeaders },
-      body: JSON.stringify({
-        model,
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content },
-        ],
-        temperature: 0.1,
-        ...extraBody,
-      }),
-    },
-    timeoutMs,
-    deadline
-  );
+  const res = await fetchWithTimeout("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+    }),
+  });
 
-  if (res.status === 401 || res.status === 403) { logFail(name, res.status); throw new Error("api_key"); }
-  if (res.status === 429) { logFail(name, res.status); throw new Error("rate"); }
-  if (!res.ok) { logFail(name, `${res.status} ${(await res.text()).slice(0, 200)}`); throw new Error("server"); }
+  if (res.status === 401 || res.status === 403) throw new Error("api_key");
+  if (res.status === 429) throw new Error("rate");
+  if (!res.ok) throw new Error("server");
 
   const data = await res.json();
   const out = data?.choices?.[0]?.message?.content;
-  if (!out) { logFail(name, "empty response"); throw new Error("server"); }
+  if (!out) throw new Error("server");
   return cleanOutput(out, polishBadini);
 }
 
-async function callGroq(systemPrompt, userPrompt, image, polishBadini, deadline) {
-  const apiKey = process.env.GROQ_API_KEY;
-  if (!apiKey) throw new Error("NO_KEY");
-  return callOpenAICompatible({
-    name: "Groq",
-    url: "https://api.groq.com/openai/v1/chat/completions",
-    apiKey,
-    model: image ? MODELS.groqVision : MODELS.groqText,
-    systemPrompt, userPrompt, image, polishBadini, deadline,
-    extraBody: image ? {} : { reasoning_effort: "medium" },
-  });
-}
-
-async function callNvidia(systemPrompt, userPrompt, image, polishBadini, deadline) {
+async function callNvidia(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.NVIDIA_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
-  return callOpenAICompatible({
-    name: "NVIDIA",
-    url: "https://integrate.api.nvidia.com/v1/chat/completions",
-    apiKey,
-    model: MODELS.nvidia,
-    systemPrompt, userPrompt, image, polishBadini, deadline,
-    extraBody: { max_tokens: 2048 },
+
+  const model = "nvidia/nemotron-3.5-super-vl-120b-a12b";
+  const content = image?.data
+    ? [
+        { type: "text", text: userPrompt },
+        { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } },
+      ]
+    : userPrompt;
+
+  const res = await fetchWithTimeout("https://integrate.api.nvidia.com/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${apiKey}` },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+      max_tokens: 1024,
+    }),
   });
+
+  if (res.status === 401 || res.status === 403) throw new Error("api_key");
+  if (res.status === 429) throw new Error("rate");
+  if (!res.ok) throw new Error("server");
+
+  const data = await res.json();
+  const out = data?.choices?.[0]?.message?.content;
+  if (!out) throw new Error("server");
+  return cleanOutput(out, polishBadini);
 }
 
-async function callOpenRouter(systemPrompt, userPrompt, image, polishBadini, deadline) {
+async function callOpenRouter(systemPrompt, userPrompt, image, polishBadini) {
   const apiKey = process.env.OPENROUTER_API_KEY;
   if (!apiKey) throw new Error("NO_KEY");
-  return callOpenAICompatible({
-    name: "OpenRouter",
-    url: "https://openrouter.ai/api/v1/chat/completions",
-    apiKey,
-    model: image ? MODELS.openrouterVision : MODELS.openrouterText,
-    systemPrompt, userPrompt, image, polishBadini, deadline,
-    extraHeaders: {
+
+  const model = image ? "nvidia/nemotron-3.5-super-vl:free" : "openrouter/free";
+  const content = image?.data
+    ? [
+        { type: "text", text: userPrompt },
+        { type: "image_url", image_url: { url: `data:${image.mimeType};base64,${image.data}` } },
+      ]
+    : userPrompt;
+
+  const res = await fetchWithTimeout("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${apiKey}`,
       "HTTP-Referer": "https://badini-translate.netlify.app",
       "X-Title": "Badini Translate",
     },
+    body: JSON.stringify({
+      model,
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content },
+      ],
+      temperature: 0.15,
+    }),
   });
+
+  if (res.status === 401 || res.status === 403) throw new Error("api_key");
+  if (res.status === 429) throw new Error("rate");
+  if (!res.ok) throw new Error("server");
+
+  const data = await res.json();
+  const out = data?.choices?.[0]?.message?.content;
+  if (!out) throw new Error("server");
+  return cleanOutput(out, polishBadini);
 }
 
-async function callCloudflare(systemPrompt, userPrompt, image, polishBadini, deadline) {
+async function callCloudflare(systemPrompt, userPrompt, image, polishBadini) {
   if (image?.data) throw new Error("skip_image");
   const token = process.env.CLOUDFLARE_API_TOKEN;
   const accountId = process.env.CLOUDFLARE_ACCOUNT_ID;
   if (!token || !accountId) throw new Error("NO_KEY");
 
-  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/${MODELS.cloudflare}`;
-  const res = await fetchWithTimeout(
-    url,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({
-        messages: [
-          { role: "system", content: systemPrompt },
-          { role: "user", content: userPrompt },
-        ],
-      }),
-    },
-    6000,
-    deadline
-  );
+  const url = `https://api.cloudflare.com/client/v4/accounts/${accountId}/ai/run/@cf/moonshotai/kimi-k2.6`;
+  const res = await fetchWithTimeout(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({
+      messages: [
+        { role: "system", content: systemPrompt },
+        { role: "user", content: userPrompt },
+      ],
+    }),
+  });
 
-  if (res.status === 401 || res.status === 403) { logFail("Cloudflare", res.status); throw new Error("api_key"); }
-  if (res.status === 429) { logFail("Cloudflare", res.status); throw new Error("rate"); }
-  if (!res.ok) { logFail("Cloudflare", `${res.status} ${(await res.text()).slice(0, 200)}`); throw new Error("server"); }
+  if (res.status === 401 || res.status === 403) throw new Error("api_key");
+  if (res.status === 429) throw new Error("rate");
+  if (!res.ok) throw new Error("server");
 
   const data = await res.json();
   const out = data?.result?.response || data?.result?.choices?.[0]?.message?.content;
-  if (!out) { logFail("Cloudflare", "empty response"); throw new Error("server"); }
+  if (!out) throw new Error("server");
   return cleanOutput(out, polishBadini);
 }
 
-const PROVIDERS = [
-  { name: "Gemini", run: callGemini, hasKey: () => !!process.env.GEMINI_API_KEY },
-  { name: "Groq", run: callGroq, hasKey: () => !!process.env.GROQ_API_KEY },
-  { name: "NVIDIA", run: callNvidia, hasKey: () => !!process.env.NVIDIA_API_KEY },
-  { name: "OpenRouter", run: callOpenRouter, hasKey: () => !!process.env.OPENROUTER_API_KEY },
-  {
-    name: "Cloudflare",
-    run: callCloudflare,
-    hasKey: () => !!(process.env.CLOUDFLARE_API_TOKEN && process.env.CLOUDFLARE_ACCOUNT_ID),
-  },
-];
+// پێداچوونا دووێ ب AI یەکێ دی دا خەلەتیێن بادینی نەمینن
+async function secondPassProofread(draft, mainProvider) {
+  const proofSystem = [
+    `You are a strict Badini Kurdish (Behdini) proofreader.`,
+    `Fix ONLY spelling typos (like نموونەا -> نموونەیا, پێتڤی -> پێدڤی), Sorani words (زۆر -> گەلەک, چۆن -> چاوا, نییە -> نینە, لەگەڵ -> دگەل, هوا -> سەقا), or ergative grammar errors (کردم -> من کر).`,
+    `Keep the exact same meaning, language, and format. If it is already good Badini, output it unchanged.`,
+    `Output ONLY the final text with NO comments, NO greetings, and NO markdown.`,
+  ].join("\n");
 
-
-// ───────────── هەڤڕکیا پرۆڤایدەران (hedging) ─────────────
-// پرۆڤایدەرێ ئێکێ دەست پێ دکەت. ئەگەر دیر بوو یان سەرنەکەفت، یێ دووێ ب هەڤڕا دەست پێ دکەت.
-// هەر کێ ب زویی بەرسڤ دا، ئەو دهێتە وەرگرتن.
-function raceProviders(list, runner, deadline, errors, started) {
-  return new Promise((resolve, reject) => {
-    let done = false;
-    let nextIdx = 0;
-    let active = 0;
-    const timers = [];
-
-    const finish = (fn, value) => {
-      if (done) return;
-      done = true;
-      timers.forEach(clearTimeout);
-      fn(value);
-    };
-
-    const startNext = () => {
-      if (done || nextIdx >= list.length) return;
-      const p = list[nextIdx++];
-      started.push(p.name);
-      active++;
-      runner(p).then(
-        (value) => finish(resolve, { provider: p, ...value }),
-        (err) => {
-          active--;
-          const kind = err?.name === "AbortError" ? "timeout" : err?.message || "server";
-          errors.push({ provider: p.name, error: kind });
-          logFail(p.name, kind);
-          if (done) return;
-          if (nextIdx < list.length) startNext();
-          else if (active === 0) finish(reject, new Error("all_failed"));
-        }
-      );
-    };
-
-    const scheduleHedge = () => {
-      timers.push(
-        setTimeout(() => {
-          startNext();
-          if (nextIdx < list.length) scheduleHedge();
-        }, HEDGE_DELAY_MS)
-      );
-    };
-
-    timers.push(
-      setTimeout(() => finish(reject, new Error("deadline")), Math.max(500, deadline - Date.now() - 300))
-    );
-    startNext();
-    scheduleHedge();
-  });
-}
-
-// ───────────── پێداچوونا رێزمانی ─────────────
-// مۆدێلەکێ جودا (ئەگەر هەبیت) دەقێ بادینی دگەل ڕەسەنی بەراورد دکەت و چاک دکەت
-async function reviewSegments(drafts, sources, mainProvider, to, deadline, failedNames = []) {
-  // پرۆڤایدەرێن د ڤێ داخوازیێ دا سەرنەکەفتین (هێدی/timeout) بۆ پێداچوونێ نەهێنە بکارئینان
-  const reviewer =
-    PROVIDERS.find((p) => p.name !== mainProvider.name && p.hasKey() && !failedNames.includes(p.name)) || mainProvider;
-  const reviewDeadline = Math.min(deadline - 1200, Date.now() + 3500);
-  const system = buildReviewSystem(to);
-
-  return mapLimit(drafts, CONCURRENCY, async (draft, i) => {
-    if (!draft) return draft;
-    const src = sources[i];
-    const user = src
-      ? `SOURCE (for checking meaning only):\n${src}\n\nBADINI DRAFT:\n${draft}`
-      : `BADINI DRAFT:\n${draft}`;
-    try {
-      const edited = await reviewer.run(system, user, null, true, reviewDeadline);
-      if (edited && edited.length >= draft.length * 0.7 && edited.length <= draft.length * 1.4) {
-        return edited;
-      }
-    } catch {
-      // ئەگەر پێداچوون سەرنەکەفت، دەقێ ئێکێ بهێلە
+  try {
+    let edited = "";
+    if (mainProvider !== "Groq" && process.env.GROQ_API_KEY) {
+      edited = await callGroq(proofSystem, draft, null, true);
+    } else if (mainProvider !== "Gemini" && process.env.GEMINI_API_KEY) {
+      edited = await callGemini(proofSystem, draft, null, true);
     }
-    return draft;
-  });
+    if (edited && edited.length >= draft.length * 0.45 && edited.length <= draft.length * 1.55) {
+      return edited;
+    }
+  } catch {
+    // ئەگەر پێداچوون خاڤ بوو، بەرسڤا ئێکێ بهێلە
+  }
+  return draft;
 }
 
-// ───────────── هەندلەر ─────────────
 exports.handler = async (event) => {
   if (event.httpMethod === "OPTIONS") return json(200, { ok: true });
   if (event.httpMethod !== "POST") return json(405, { error: "server" });
-
-  const startedAt = Date.now();
-  const deadline = startedAt + TOTAL_BUDGET_MS;
 
   let body;
   try {
@@ -693,92 +418,58 @@ exports.handler = async (event) => {
   const image = mode === "translate" ? body.image || null : null;
 
   if (!text && !translation && !image?.data) return json(400, { error: "bad_input" });
-  if ((mode === "translate" || mode === "fix") && (countWords(text) > MAX_WORDS || text.length > MAX_CHARS)) {
-    return json(400, { error: "too_many_words" });
-  }
+  if (text.length > 3000) return json(400, { error: "bad_input" });
   if (image?.data) {
     if (!String(image.mimeType || "").startsWith("image/")) return json(400, { error: "bad_image" });
     if (image.data.length > 2 * 1024 * 1024) return json(413, { error: "too_large" });
   }
 
-  const isBadiniTarget = to === "ku-Ar" || to === "ku-Latn";
   const polishBadini =
     mode === "fix" ||
     (mode === "explain" && ui === "ku") ||
     (mode === "translate" && to === "ku-Ar");
-  const doReview = mode === "translate" && isBadiniTarget;
 
   const { systemPrompt, userPrompt } = buildPrompts({
-    mode, text, translation, from, to, style, ui, hasImage: !!image?.data,
+    mode,
+    text,
+    translation,
+    from,
+    to,
+    style,
+    ui,
+    hasImage: !!image?.data,
   });
 
-  // دەقێ درێژ دهێتە پارچەکرن و ب هەڤڕا دهێتە وەرگێڕان. وێنە و explain ب ئێک داخواز.
-  const useChunks = (mode === "translate" || mode === "fix") && !image?.data && !!text;
-  const segments = useChunks ? splitText(text) : null;
+  const providers = [
+    ["Gemini", callGemini],
+    ["Groq", callGroq],
+    ["NVIDIA", callNvidia],
+    ["OpenRouter", callOpenRouter],
+    ["Cloudflare", callCloudflare],
+  ];
 
-  const candidates = PROVIDERS.filter(
-    (p) => p.hasKey() && !(image?.data && p.name === "Cloudflare")
-  );
-  if (!candidates.length) return json(401, { error: "api_key" });
+  const startedAt = Date.now();
+  let lastError = "server";
+  let hasAnyKey = false;
 
-  // یەک پرۆڤایدەر: وەرگێڕان (ب پارچە یان ب ئێک داخواز)
-  const runPipeline = async (provider) => {
-    if (useChunks) {
-      const draftParts = await mapLimit(segments, CONCURRENCY, (seg) =>
-        provider.run(systemPrompt, seg.t, null, polishBadini, deadline)
-      );
-      return { draftParts, result: draftParts.map((p, i) => p + segments[i].sep).join("").trim() };
-    }
-    const result = await provider.run(systemPrompt, userPrompt, image, polishBadini, deadline);
-    return { draftParts: null, result };
-  };
-
-  const errors = [];
-  const started = [];
-  let winner;
-  try {
-    winner = await raceProviders(candidates, runPipeline, deadline, errors, started);
-  } catch {
-    const kinds = errors.map((e) => e.error);
-    let error = "timeout";
-    if (kinds.length && kinds.every((k) => k === "api_key")) error = "api_key";
-    else if (kinds.some((k) => k === "rate" || k === "quota") && !kinds.includes("timeout")) error = "rate";
-    else if (kinds.length && !kinds.includes("timeout")) error = "server";
-    const status = error === "api_key" ? 401 : error === "rate" ? 429 : error === "timeout" ? 504 : 500;
-    return json(status, { error, details: errors, elapsedMs: Date.now() - startedAt });
-  }
-
-  let { result, draftParts } = winner;
-  const busyNames = started.filter((n) => n !== winner.provider.name);
-  const provider = winner.provider;
-
-  if (result.includes("__NO_TEXT__")) {
-    return json(200, { translation: "", noText: true, provider: provider.name });
-  }
-
-  // پێداچوونا رێزمانی: تنێ ئەگەر وەخت مای
-  let reviewed = false;
-  if (doReview && deadline - Date.now() > 4500) {
+  for (const [name, run] of providers) {
+    if (Date.now() - startedAt > 7800) break;
     try {
-      if (useChunks) {
-        const fixedParts = await reviewSegments(draftParts, segments.map((s) => s.t), provider, to, deadline, busyNames);
-        result = fixedParts.map((p, i) => p + segments[i].sep).join("").trim();
-      } else {
-        const [fixed] = await reviewSegments([result], [text], provider, to, deadline, busyNames);
-        result = fixed;
+      let result = await run(systemPrompt, userPrompt, image, polishBadini);
+      if (result.includes("__NO_TEXT__")) {
+        return json(200, { translation: "", noText: true, provider: name });
       }
-      reviewed = true;
-    } catch {
-      // دەقێ ئێکێ بهێلە
+      if (polishBadini && Date.now() - startedAt < 4500) {
+        result = await secondPassProofread(result, name);
+      }
+      return json(200, { translation: result, noText: false, provider: name });
+    } catch (err) {
+      if (err.message === "NO_KEY" || err.message === "skip_image") continue;
+      hasAnyKey = true;
+      lastError = err.name === "AbortError" ? "timeout" : err.message;
     }
   }
 
-  result = cleanOutput(result, polishBadini);
-  return json(200, {
-    translation: result,
-    noText: false,
-    provider: provider.name,
-    reviewed,
-    elapsedMs: Date.now() - startedAt,
-  });
+  if (!hasAnyKey) return json(401, { error: "api_key" });
+  return json(lastError === "rate" || lastError === "quota" ? 429 : 500, { error: lastError });
 };
