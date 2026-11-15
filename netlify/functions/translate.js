@@ -225,8 +225,12 @@ async function callGemini(systemPrompt, userPrompt, image, polishBadini) {
           body: JSON.stringify({
             system_instruction: { parts: [{ text: systemPrompt }] },
             contents: [{ role: "user", parts }],
-            generationConfig: { temperature: 0.15 },
-          }),
+generationConfig: {
+              temperature: 0.15,
+              thinkingConfig: {
+                thinkingLevel: model === "gemini-3.8-flash" ? "low" : "minimal",
+              },
+            },          }),
         },
         i === 0 ? 5000 : 3200
       );
@@ -270,6 +274,7 @@ async function callGroq(systemPrompt, userPrompt, image, polishBadini) {
           { role: "user", content },
         ],
         temperature: 0.15,
+        ...(image ? {} : { reasoning_effort: "low" }),
       }),
     },
     4200
